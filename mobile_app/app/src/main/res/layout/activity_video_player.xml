@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <com.google.android.exoplayer2.ui.PlayerView
+        android:id="@+id/player_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000"
+        app:show_shuffle_button="false"
+        app:show_subtitle_button="false"
+        app:use_controller="false" />
+
+    <!-- Subtitle overlay -->
+    <TextView
+        android:id="@+id/subtitle_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="16dp"
+        android:gravity="center"
+        android:textColor="#FFFFFFFF"
+        android:textSize="16sp"
+        android:shadowColor="#88000000"
+        android:shadowDx="0.5"
+        android:shadowDy="0.5"
+        android:shadowRadius="2"
+        android:background="#80000000"
+        android:padding="8dp"
+        android:maxLines="4"
+        android:visibility="gone" />
+
+    <!-- Controls overlay -->
+    <LinearLayout
+        android:id="@+id/controls_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:background="#00000000"
+        android:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btn_seek_back_10m"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="back10m"
+                android:src="@android:drawable/ic_media_rew" />
+
+            <ImageButton
+                android:id="@+id/btn_seek_back_1m"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="back1m"
+                android:src="@android:drawable/ic_media_rew" />
+
+            <ImageButton
+                android:id="@+id/btn_seek_back_10s"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="back10s"
+                android:src="@android:drawable/ic_media_rew" />
+
+            <ImageButton
+                android:id="@+id/btn_play_pause"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:contentDescription="playpause"
+                android:src="@android:drawable/ic_media_play" />
+
+            <ImageButton
+                android:id="@+id/btn_seek_forward_10s"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="forward10s"
+                android:src="@android:drawable/ic_media_ff" />
+
+            <ImageButton
+                android:id="@+id/btn_seek_forward_1m"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="forward1m"
+                android:src="@android:drawable/ic_media_ff" />
+
+            <ImageButton
+                android:id="@+id/btn_seek_forward_10m"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="forward10m"
+                android:src="@android:drawable/ic_media_ff" />
+
+            <ImageButton
+                android:id="@+id/btn_rotate"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="rotate"
+                android:src="@android:drawable/ic_menu_always_landscape_portrait" />
+
+            <ImageButton
+                android:id="@+id/btn_pip"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="pip"
+                android:src="@android:drawable/picture_frame" />
+        </LinearLayout>
+
+        <!-- Labels for seek buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10p" android:padding="4dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1p" android:padding="4dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10s" android:padding="4dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:padding="24dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10s" android:padding="4dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1p" android:padding="4dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10p" android:padding="4dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="xoay" android:padding="4dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PiP" android:padding="4dp" />
+        </LinearLayout>
+
+        <!-- Timeline -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="4dp">
+            <TextView
+                android:id="@+id/txt_current"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:text="00:00" />
+            <SeekBar
+                android:id="@+id/seek_timeline"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="1000" />
+            <TextView
+                android:id="@+id/txt_duration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:text="00:00" />
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/speed_seekbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="100"
+            android:progress="10" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btn_minus_025"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="-0.25" />
+            <Button
+                android:id="@+id/btn_minus_01"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="-0.1" />
+            <TextView
+                android:id="@+id/txt_speed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:text="1.00x"
+                android:textColor="#FFFFFFFF" />
+            <Button
+                android:id="@+id/btn_plus_01"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+0.1" />
+            <Button
+                android:id="@+id/btn_plus_025"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+0.25" />
+        </LinearLayout>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fillViewport="false">
+            <LinearLayout
+                android:id="@+id/preset_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="4dp" />
+        </HorizontalScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+            <Button
+                android:id="@+id/btn_pick_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Chọn phụ đề (.srt)" />
+        </LinearLayout>
+    </LinearLayout>
+
+</FrameLayout>
+
+
