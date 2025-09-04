@@ -17,7 +17,7 @@ class AppSettings extends ChangeNotifier {
   bool _showSubtitles = true;
   String _subtitleFontFamily = 'Arial';
   double _subtitleFontSize = 16.0;
-  String _subtitleColor = 'white';
+  Color _subtitleColor = Colors.white;
   Color _subtitleBackgroundColor = Colors.black.withOpacity(0.5);
 
   // Getters - Giao diện
@@ -35,7 +35,7 @@ class AppSettings extends ChangeNotifier {
   bool get showSubtitles => _showSubtitles;
   String get subtitleFontFamily => _subtitleFontFamily;
   double get subtitleFontSize => _subtitleFontSize;
-  String get subtitleColor => _subtitleColor;
+  Color get subtitleColor => _subtitleColor;
   Color get subtitleBackgroundColor => _subtitleBackgroundColor;
 
   AppSettings() {
@@ -61,7 +61,7 @@ class AppSettings extends ChangeNotifier {
     _showSubtitles = prefs.getBool('showSubtitles') ?? true;
     _subtitleFontFamily = prefs.getString('subtitleFontFamily') ?? 'Arial';
     _subtitleFontSize = prefs.getDouble('subtitleFontSize') ?? 16.0;
-    _subtitleColor = prefs.getString('subtitleColor') ?? 'white';
+    _subtitleColor = Color(prefs.getInt('subtitleColor') ?? Colors.white.value);
     _subtitleBackgroundColor = Color(prefs.getInt('subtitleBackgroundColor') ?? 
         Colors.black.withOpacity(0.5).value);
     notifyListeners();
@@ -86,7 +86,7 @@ class AppSettings extends ChangeNotifier {
     await prefs.setBool('showSubtitles', _showSubtitles);
     await prefs.setString('subtitleFontFamily', _subtitleFontFamily);
     await prefs.setDouble('subtitleFontSize', _subtitleFontSize);
-    await prefs.setString('subtitleColor', _subtitleColor);
+    await prefs.setInt('subtitleColor', _subtitleColor.value);
     await prefs.setInt('subtitleBackgroundColor', _subtitleBackgroundColor.value);
   }
 
@@ -153,7 +153,7 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  set subtitleColor(String value) {
+  set subtitleColor(Color value) {
     _subtitleColor = value;
     _saveSettings();
     notifyListeners();

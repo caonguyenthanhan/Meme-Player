@@ -79,7 +79,11 @@ class _HomeScreenState extends State<HomeScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PlayerScreen(mediaFile: mediaFile),
+          builder: (context) => PlayerScreen(
+            mediaFile: mediaFile,
+            playlist: null,
+            initialIndex: 0,
+          ),
         ),
       );
     }
@@ -136,7 +140,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PlayerScreen(mediaFile: file),
+                          builder: (context) => PlayerScreen(
+                            mediaFile: file,
+                            playlist: mediaFiles,
+                            initialIndex: index,
+                          ),
                         ),
                       );
                     },
@@ -393,7 +401,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => PlayerScreen(mediaFile: file),
+                                  builder: (context) => PlayerScreen(
+                                    mediaFile: file,
+                                    playlist: _recentFiles,
+                                    initialIndex: index,
+                                  ),
                                 ),
                               );
                             },

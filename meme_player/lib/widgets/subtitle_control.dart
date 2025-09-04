@@ -52,7 +52,7 @@ class SubtitleControl extends StatelessWidget {
                   _showColorPicker(
                     context,
                     settings.subtitleColor,
-                    (color) => settings.setSubtitleColor(color),
+                    (color) => settings.subtitleColor = color,
                   );
                 },
               ),

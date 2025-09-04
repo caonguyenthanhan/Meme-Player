@@ -8,11 +8,14 @@ import '../models/app_settings.dart';
 import '../services/window_service.dart';
 import '../widgets/playback_speed_control.dart';
 import '../widgets/subtitle_control.dart';
+import '../services/subtitle_service.dart';
 
 class PlayerScreen extends StatefulWidget {
   final MediaFile mediaFile;
+  final List<MediaFile>? playlist;
+  final int? initialIndex;
 
-  const PlayerScreen({super.key, required this.mediaFile});
+  const PlayerScreen({super.key, required this.mediaFile, this.playlist, this.initialIndex});
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -25,25 +28,41 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _showControls = true;
   String? _errorMessage;
   final WindowService _windowService = WindowService();
+  final SubtitleService _subtitleService = SubtitleService();
+  String? _currentSubtitleText;
+  late VoidCallback _positionListener;
+  List<MediaFile>? _playlist;
+  int _currentIndex = 0;
+
+  MediaFile get _currentMedia => (_playlist != null && _playlist!.isNotEmpty)
+      ? _playlist![_currentIndex]
+      : widget.mediaFile;
 
   @override
   void initState() {
     super.initState();
+    _playlist = widget.playlist;
+    _currentIndex = widget.initialIndex ?? 0;
     _initializePlayer();
   }
 
   Future<void> _initializePlayer() async {
     try {
-      final file = File(widget.mediaFile.path);
+      final file = File(_currentMedia.path);
       if (!file.existsSync()) {
         setState(() {
-          _errorMessage = 'Tệp không tồn tại: ${widget.mediaFile.path}';
+          _errorMessage = 'Tệp không tồn tại: ${_currentMedia.path}';
         });
         return;
       }
 
       _videoPlayerController = VideoPlayerController.file(file);
       await _videoPlayerController!.initialize();
+
+      // Load subtitles if present
+      if (_currentMedia.subtitlePath != null) {
+        await _subtitleService.loadSubtitleFromFile(_currentMedia.subtitlePath!);
+      }
 
       // Get playback speed from settings
       final settings = Provider.of<AppSettings>(context, listen: false);
@@ -55,34 +74,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
         aspectRatio: _videoPlayerController!.value.aspectRatio,
         playbackSpeeds: [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
         playbackSpeed: settings.playbackSpeed,
-        subtitle: widget.mediaFile.hasSubtitle
-            ? Subtitles([
-                Subtitle(
-                  index: 0,
-                  start: Duration.zero,
-                  end: const Duration(seconds: 3),
-                  text: 'Phụ đề mẫu (sẽ được thay thế bằng phụ đề thực tế)',
-                ),
-              ])
-            : null,
-        subtitleBuilder: (context, subtitle) => Container(
-          padding: const EdgeInsets.all(10.0),
-          child: Text(
-            subtitle,
-            style: TextStyle(
-              color: settings.subtitleColor,
-              fontSize: settings.subtitleFontSize,
-              fontFamily: settings.subtitleFontFamily,
-              backgroundColor: settings.subtitleBackgroundColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
+        subtitle: null,
       );
 
       setState(() {
         _isInitialized = true;
       });
+
+      // Listen to position updates for subtitle rendering
+      _positionListener = () {
+        final position = _videoPlayerController!.value.position;
+        final speed = _chewieController?.playbackSpeed ?? 1.0;
+        if (_currentMedia.subtitlePath != null) {
+          final text = _subtitleService.getSubtitleTextAtPosition(
+            _currentMedia.subtitlePath!,
+            position,
+            speed,
+          );
+          if (text != _currentSubtitleText) {
+            setState(() {
+              _currentSubtitleText = text;
+            });
+          }
+        }
+      };
+      _videoPlayerController!.addListener(_positionListener);
     } catch (e) {
       setState(() {
         _errorMessage = 'Lỗi khi khởi tạo trình phát: $e';
@@ -94,6 +110,44 @@ class _PlayerScreenState extends State<PlayerScreen> {
     setState(() {
       _showControls = !_showControls;
     });
+  }
+
+  bool get _hasNext => _playlist != null && _currentIndex < (_playlist!.length - 1);
+  bool get _hasPrev => _playlist != null && _currentIndex > 0;
+
+  Future<void> _playAtIndex(int index) async {
+    if (_playlist == null || index < 0 || index >= _playlist!.length) return;
+    if (_videoPlayerController != null) {
+      _videoPlayerController!.removeListener(_positionListener);
+      await _videoPlayerController!.pause();
+      await _videoPlayerController!.dispose();
+      _videoPlayerController = null;
+    }
+    if (_chewieController != null) {
+      await _chewieController!.pause();
+      await _chewieController!.dispose();
+      _chewieController = null;
+    }
+    _subtitleService.clearLoadedSubtitles();
+    setState(() {
+      _currentSubtitleText = null;
+      _isInitialized = false;
+      _errorMessage = null;
+      _currentIndex = index;
+    });
+    await _initializePlayer();
+  }
+
+  Future<void> _playNext() async {
+    if (_hasNext) {
+      await _playAtIndex(_currentIndex + 1);
+    }
+  }
+
+  Future<void> _playPrev() async {
+    if (_hasPrev) {
+      await _playAtIndex(_currentIndex - 1);
+    }
   }
 
   void _skipForward(Duration duration) {
@@ -128,6 +182,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void dispose() {
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
+    if (_videoPlayerController != null) {
+      _videoPlayerController!.removeListener(_positionListener);
+    }
     super.dispose();
   }
 
@@ -136,8 +193,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_errorMessage != null) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(widget.mediaFile.name),
+          title: Text(_currentMedia.name),
           actions: [
+            if (_playlist != null)
+              IconButton(
+                icon: const Icon(Icons.skip_previous),
+                tooltip: 'Trước đó',
+                onPressed: _hasPrev ? _playPrev : null,
+              ),
             // Nút Always on top
             IconButton(
               icon: Icon(
@@ -158,6 +221,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 await _windowService.toggleFullScreen();
               },
             ),
+            if (_playlist != null)
+              IconButton(
+                icon: const Icon(Icons.skip_next),
+                tooltip: 'Tiếp theo',
+                onPressed: _hasNext ? _playNext : null,
+              ),
           ],
         ),
         body: Center(child: Text(_errorMessage!)),
@@ -167,7 +236,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (!_isInitialized) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(widget.mediaFile.name),
+          title: Text(_currentMedia.name),
           actions: [
             // Nút Always on top
             IconButton(
@@ -190,8 +259,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return Scaffold(
       appBar: _showControls
           ? AppBar(
-              title: Text(widget.mediaFile.name),
+              title: Text(_currentMedia.name),
               actions: [
+                if (_playlist != null)
+                  IconButton(
+                    icon: const Icon(Icons.skip_previous),
+                    tooltip: 'Trước đó',
+                    onPressed: _hasPrev ? _playPrev : null,
+                  ),
                 IconButton(
                   icon: const Icon(Icons.speed),
                   onPressed: () {
@@ -204,7 +279,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     );
                   },
                 ),
-                if (widget.mediaFile.isVideo)
+                if (_currentMedia.isVideo)
                   IconButton(
                     icon: const Icon(Icons.subtitles),
                     onPressed: () {
@@ -213,6 +288,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         builder: (context) => const SubtitleControl(),
                       );
                     },
+                  ),
+                if (_playlist != null)
+                  IconButton(
+                    icon: const Icon(Icons.skip_next),
+                    tooltip: 'Tiếp theo',
+                    onPressed: _hasNext ? _playNext : null,
                   ),
               ],
             )
@@ -230,6 +311,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 child: Chewie(controller: _chewieController!),
               ),
             ),
+            // Subtitle overlay
+            if (_currentMedia.isVideo && _currentSubtitleText != null && _currentSubtitleText!.isNotEmpty)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 40,
+                child: Consumer<AppSettings>(
+                  builder: (context, settings, _) => IgnorePointer(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text(
+                        _currentSubtitleText!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: settings.subtitleColor,
+                          fontSize: settings.subtitleFontSize,
+                          fontFamily: settings.subtitleFontFamily,
+                          backgroundColor: settings.subtitleBackgroundColor,
+                          shadows: const [
+                            Shadow(blurRadius: 2, color: Colors.black54, offset: Offset(0.5, 0.5)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             if (_showControls)
               Positioned(
                 left: 0,
@@ -247,14 +355,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     const SizedBox(width: 16),
                     IconButton(
                       icon: const Icon(Icons.replay_30),
-                      onPressed: () => _skipBackward(const Duration(seconds: 30)),
+                      onPressed: () => _skipBackward(const Duration(minutes: 1)),
                       color: Colors.white,
                       iconSize: 36,
                     ),
                     const SizedBox(width: 32),
                     IconButton(
                       icon: const Icon(Icons.forward_30),
-                      onPressed: () => _skipForward(const Duration(seconds: 30)),
+                      onPressed: () => _skipForward(const Duration(minutes: 1)),
                       color: Colors.white,
                       iconSize: 36,
                     ),
@@ -262,6 +370,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     IconButton(
                       icon: const Icon(Icons.forward_10),
                       onPressed: () => _skipForward(const Duration(seconds: 10)),
+                      color: Colors.white,
+                      iconSize: 36,
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: const Icon(Icons.forward_10),
+                      onPressed: () => _skipForward(const Duration(minutes: 10)),
+                      color: Colors.white,
+                      iconSize: 36,
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: const Icon(Icons.replay_10),
+                      onPressed: () => _skipBackward(const Duration(minutes: 10)),
                       color: Colors.white,
                       iconSize: 36,
                     ),

@@ -1,3 +1,22 @@
 <resources>
     <string name="app_name">Meme Player</string>
+    
+    <!-- Bottom Navigation -->
+    <string name="title_home">Trang chủ</string>
+    <string name="title_library">Thư viện</string>
+    <string name="title_settings">Cài đặt</string>
+    
+    <!-- Top Menu -->
+    <string name="action_search">Tìm kiếm</string>
+    <string name="action_about">Về ứng dụng</string>
+    
+    <!-- Settings -->
+    <string name="settings_appearance">Giao diện</string>
+    <string name="settings_dark_mode">Chế độ tối</string>
+    <string name="settings_plugins">Plugins</string>
+    <string name="settings_auto_subtitle">Tự động tạo phụ đề</string>
+    <string name="settings_video_enhancer">Nâng cao chất lượng video</string>
+    <string name="settings_audio_enhancer">Nâng cao chất lượng âm thanh</string>
+    <string name="settings_storage">Lưu trữ</string>
+    <string name="settings_clear_cache">Xóa cache</string>
 </resources>
