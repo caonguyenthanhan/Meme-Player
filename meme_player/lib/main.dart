@@ -30,19 +30,62 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<AppSettings>(
         builder: (context, settings, _) => MaterialApp(
-        title: 'Meme Player',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          brightness: Brightness.light,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
+          title: 'Meme Player',
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.light,
+            ),
+            visualDensity: VisualDensity.adaptivePlatformDensity,
+            appBarTheme: const AppBarTheme(
+              centerTitle: true,
+              elevation: 0,
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            cardTheme: CardTheme(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.dark,
+            ),
+            visualDensity: VisualDensity.adaptivePlatformDensity,
+            appBarTheme: const AppBarTheme(
+              centerTitle: true,
+              elevation: 0,
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            cardTheme: CardTheme(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
+          home: const HomeScreen(),
         ),
-        darkTheme: ThemeData(
-          primarySwatch: Colors.blue,
-          brightness: Brightness.dark,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-        ),
-        themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
-        home: const HomeScreen(),
       ),
     );
   }

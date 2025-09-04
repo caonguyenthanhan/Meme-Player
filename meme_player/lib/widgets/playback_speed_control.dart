@@ -106,12 +106,22 @@ class _PlaybackSpeedControlState extends State<PlaybackSpeedControl> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _currentSpeed == speed
                       ? Theme.of(context).primaryColor
-                      : null,
+                      : Colors.grey[300],
                   foregroundColor: _currentSpeed == speed
                       ? Colors.white
-                      : null,
+                      : Colors.black87,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: Text('${speed}x'),
+                child: Text(
+                  '${speed}x',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               );
             }).toList(),
           ),

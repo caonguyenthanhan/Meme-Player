@@ -52,64 +52,64 @@
 
             <ImageButton
                 android:id="@+id/btn_seek_back_10m"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:contentDescription="back10m"
                 android:src="@android:drawable/ic_media_rew" />
 
             <ImageButton
                 android:id="@+id/btn_seek_back_1m"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:contentDescription="back1m"
                 android:src="@android:drawable/ic_media_rew" />
 
             <ImageButton
                 android:id="@+id/btn_seek_back_10s"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:contentDescription="back10s"
                 android:src="@android:drawable/ic_media_rew" />
 
             <ImageButton
                 android:id="@+id/btn_play_pause"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:contentDescription="playpause"
                 android:src="@android:drawable/ic_media_play" />
 
             <ImageButton
                 android:id="@+id/btn_seek_forward_10s"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:contentDescription="forward10s"
                 android:src="@android:drawable/ic_media_ff" />
 
             <ImageButton
                 android:id="@+id/btn_seek_forward_1m"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:contentDescription="forward1m"
                 android:src="@android:drawable/ic_media_ff" />
 
             <ImageButton
                 android:id="@+id/btn_seek_forward_10m"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:contentDescription="forward10m"
                 android:src="@android:drawable/ic_media_ff" />
 
             <ImageButton
                 android:id="@+id/btn_rotate"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:contentDescription="rotate"
                 android:src="@android:drawable/ic_menu_always_landscape_portrait" />
 
             <ImageButton
                 android:id="@+id/btn_pip"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:contentDescription="pip"
                 android:src="@android:drawable/picture_frame" />
         </LinearLayout>
@@ -120,15 +120,15 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal">
-            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10p" android:padding="4dp" />
-            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1p" android:padding="4dp" />
-            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10s" android:padding="4dp" />
-            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:padding="24dp" />
-            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10s" android:padding="4dp" />
-            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1p" android:padding="4dp" />
-            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10p" android:padding="4dp" />
-            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="xoay" android:padding="4dp" />
-            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PiP" android:padding="4dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10p" android:padding="2dp" android:textSize="10sp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1p" android:padding="2dp" android:textSize="10sp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10s" android:padding="2dp" android:textSize="10sp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:padding="16dp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10s" android:padding="2dp" android:textSize="10sp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1p" android:padding="2dp" android:textSize="10sp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10p" android:padding="2dp" android:textSize="10sp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="xoay" android:padding="2dp" android:textSize="10sp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PiP" android:padding="2dp" android:textSize="10sp" />
         </LinearLayout>
 
         <!-- Timeline -->
@@ -174,31 +174,36 @@
             <Button
                 android:id="@+id/btn_minus_025"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="-0.25" />
+                android:layout_height="32dp"
+                android:text="-0.25"
+                android:textSize="12sp" />
             <Button
                 android:id="@+id/btn_minus_01"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="-0.1" />
+                android:layout_height="32dp"
+                android:text="-0.1"
+                android:textSize="12sp" />
             <TextView
                 android:id="@+id/txt_speed"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
                 android:text="1.00x"
-                android:textColor="#FFFFFFFF" />
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp" />
             <Button
                 android:id="@+id/btn_plus_01"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="+0.1" />
+                android:layout_height="32dp"
+                android:text="+0.1"
+                android:textSize="12sp" />
             <Button
                 android:id="@+id/btn_plus_025"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="+0.25" />
+                android:layout_height="32dp"
+                android:text="+0.25"
+                android:textSize="12sp" />
         </LinearLayout>
 
         <HorizontalScrollView
@@ -210,7 +215,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:padding="4dp" />
+                android:padding="2dp" />
         </HorizontalScrollView>
 
         <LinearLayout
@@ -221,8 +226,9 @@
             <Button
                 android:id="@+id/btn_pick_subtitle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Chọn phụ đề (.srt)" />
+                android:layout_height="32dp"
+                android:text="Chọn phụ đề (.srt)"
+                android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>
 

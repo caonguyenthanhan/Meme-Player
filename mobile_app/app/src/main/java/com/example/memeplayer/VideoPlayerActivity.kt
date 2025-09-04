@@ -357,25 +357,29 @@ class VideoPlayerActivity : AppCompatActivity() {
     private fun loadSrt(uri: android.net.Uri): List<Triple<Long, Long, String>> {
         return try {
             val input = contentResolver.openInputStream(uri) ?: return emptyList()
-            val reader = BufferedReader(InputStreamReader(input))
+            val reader = BufferedReader(InputStreamReader(input, "UTF-8"))
             val list = mutableListOf<Triple<Long, Long, String>>()
             var line: String?
             var start: Long = -1
             var end: Long = -1
             val textBuilder = StringBuilder()
+            
             fun flush() {
-                if (start >= 0 && end >= 0) {
+                if (start >= 0 && end >= 0 && textBuilder.isNotEmpty()) {
                     list.add(Triple(start, end, textBuilder.toString().trim()))
                 }
                 start = -1; end = -1; textBuilder.setLength(0)
             }
+            
             while (reader.readLine().also { line = it } != null) {
-                val l = line!!.trim()
+                val l = line?.trim() ?: continue
                 if (l.matches(Regex("^\\d+$"))) continue
                 if (l.contains("-->")) {
                     val parts = l.split("-->")
-                    start = parseSrtTime(parts[0].trim())
-                    end = parseSrtTime(parts[1].trim())
+                    if (parts.size == 2) {
+                        start = parseSrtTime(parts[0].trim())
+                        end = parseSrtTime(parts[1].trim())
+                    }
                 } else if (l.isEmpty()) {
                     flush()
                 } else {
@@ -384,22 +388,30 @@ class VideoPlayerActivity : AppCompatActivity() {
                 }
             }
             flush()
+            reader.close()
+            input.close()
             list
         } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Lỗi đọc file phụ đề: ${e.message}", Toast.LENGTH_LONG).show()
             emptyList()
         }
     }
 
     private fun parseSrtTime(s: String): Long {
-        // format: HH:MM:SS,mmm
         return try {
             val parts = s.split(":", ",")
+            if (parts.size != 4) return 0L
+            
             val h = parts[0].toLong()
             val m = parts[1].toLong()
             val sec = parts[2].toLong()
             val ms = parts[3].toLong()
             ((h*3600 + m*60 + sec)*1000 + ms)
-        } catch (_: Exception) { 0L }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0L
+        }
     }
 }
 

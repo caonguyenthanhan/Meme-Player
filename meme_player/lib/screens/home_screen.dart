@@ -237,183 +237,266 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openRecentFile(MediaFile file) async {
+    // Kiểm tra xem tệp còn tồn tại không
+    final fileExists = await File(file.path).exists();
+    if (!fileExists) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tệp không tồn tại hoặc đã bị di chuyển')),
+      );
+      // Xóa khỏi danh sách gần đây
+      setState(() {
+        _recentFiles.remove(file);
+      });
+      await _fileService.saveRecentFiles(_recentFiles);
+      return;
+    }
+    
+    // Cập nhật thứ tự trong danh sách gần đây
+    await _fileService.addToRecentFiles(file);
+    await _loadRecentFiles();
+    
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PlayerScreen(
+          mediaFile: file,
+          playlist: _recentFiles,
+          initialIndex: _recentFiles.indexOf(file),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Meme Player'),
+        title: const Text(
+          'Meme Player',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         actions: [
-          // Nút Always on top
           IconButton(
-            icon: Icon(
-              Icons.pin_drop,
-              color: _windowService.isAlwaysOnTop ? Colors.amber : null,
-            ),
-            tooltip: 'Luôn hiển thị trên cùng',
-            onPressed: () async {
-              await _windowService.toggleAlwaysOnTop();
-              setState(() {}); // Cập nhật UI
-            },
-          ),
-          // Nút cài đặt
-          Consumer<AppSettings>(
-            builder: (context, settings, child) {
-              return PopupMenuButton<String>(
-                icon: const Icon(Icons.settings),
-                tooltip: 'Cài đặt',
-                onSelected: (value) {
-                  switch (value) {
-                    case 'basic':
-                      _showBasicSettings(context, settings);
-                      break;
-                    case 'advanced':
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AdvancedSettingsScreen(),
-                        ),
-                      );
-                      break;
-                    case 'plugins':
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PluginsScreen(),
-                        ),
-                      );
-                      break;
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem<String>(
-                    value: 'basic',
-                    child: Row(
-                      children: [
-                        Icon(Icons.tune),
-                        SizedBox(width: 8),
-                        Text('Cài đặt cơ bản'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'advanced',
-                    child: Row(
-                      children: [
-                        Icon(Icons.settings_applications),
-                        SizedBox(width: 8),
-                        Text('Cài đặt nâng cao'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'plugins',
-                    child: Row(
-                      children: [
-                        Icon(Icons.extension),
-                        SizedBox(width: 8),
-                        Text('Quản lý plugin'),
-                      ],
-                    ),
-                  ),
-                ],
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdvancedSettingsScreen(),
+                ),
               );
             },
+            tooltip: 'Cài đặt',
+          ),
+          IconButton(
+            icon: const Icon(Icons.extension),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PluginsScreen(),
+                ),
+              );
+            },
+            tooltip: 'Plugins',
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Open file/folder buttons
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.file_open),
-                  label: const Text('Mở tệp'),
-                  onPressed: _openFile,
-                ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.folder_open),
-                  label: const Text('Mở thư mục'),
-                  onPressed: _openFolder,
-                ),
-              ],
-            ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.surfaceVariant,
+            ],
           ),
-          
-          // Recent files
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _recentFiles.isEmpty
-                    ? const Center(
-                        child: Text('Không có tệp nào được mở gần đây'),
-                      )
-                    : ListView.builder(
-                        itemCount: _recentFiles.length,
-                        itemBuilder: (context, index) {
-                          final file = _recentFiles[index];
-                          return ListTile(
-                            leading: Icon(
-                              file.isVideo ? Icons.video_file : Icons.audio_file,
-                            ),
-                            title: Text(file.name),
-                            subtitle: Text(file.path),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(file.extension.toUpperCase()),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, size: 20),
-                                  onPressed: () async {
-                                    // Xóa khỏi danh sách gần đây
-                                    setState(() {
-                                      _recentFiles.removeAt(index);
-                                    });
-                                    await _fileService.saveRecentFiles(_recentFiles);
-                                  },
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Welcome section
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.play_circle_filled,
+                        size: 64,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Chào mừng đến với Meme Player',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ứng dụng phát media đa năng với nhiều tính năng nâng cao',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _openFile,
+                      icon: const Icon(Icons.file_open),
+                      label: const Text(
+                        'Mở file',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _openFolder,
+                      icon: const Icon(Icons.folder_open),
+                      label: const Text(
+                        'Mở thư mục',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Theme.of(context).colorScheme.secondary,
+                        foregroundColor: Colors.white,
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              
+              // Recent files section
+              if (_recentFiles.isNotEmpty) ...[
+                Row(
+                  children: [
+                    Icon(
+                      Icons.history,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Tệp gần đây',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: _loadRecentFiles,
+                      child: const Text('Làm mới'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Card(
+                    elevation: 2,
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : ListView.builder(
+                            itemCount: _recentFiles.length,
+                            itemBuilder: (context, index) {
+                              final file = _recentFiles[index];
+                              return ListTile(
+                                leading: Icon(
+                                  file.isVideo ? Icons.video_file : Icons.audio_file,
+                                  color: file.isVideo
+                                      ? Colors.red
+                                      : Colors.blue,
                                 ),
-                              ],
-                            ),
-                            onTap: () async {
-                              // Kiểm tra xem tệp còn tồn tại không
-                              final fileExists = await File(file.path).exists();
-                              if (!fileExists) {
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Tệp không tồn tại hoặc đã bị di chuyển')),
-                                );
-                                // Xóa khỏi danh sách gần đây
-                                setState(() {
-                                  _recentFiles.removeAt(index);
-                                });
-                                await _fileService.saveRecentFiles(_recentFiles);
-                                return;
-                              }
-                              
-                              // Cập nhật thứ tự trong danh sách gần đây
-                              await _fileService.addToRecentFiles(file);
-                              await _loadRecentFiles();
-                              
-                              if (!mounted) return;
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PlayerScreen(
-                                    mediaFile: file,
-                                    playlist: _recentFiles,
-                                    initialIndex: index,
-                                  ),
+                                title: Text(
+                                  file.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
+                                subtitle: Text(
+                                  file.path,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.play_arrow),
+                                  onPressed: () => _openRecentFile(file),
+                                ),
+                                onTap: () => _openRecentFile(file),
                               );
                             },
-                          );
-                        },
-                      ),
+                          ),
+                  ),
+                ),
+              ] else ...[
+                // Empty state
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.music_note,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Chưa có tệp nào được mở',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Hãy mở file hoặc thư mục để bắt đầu',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

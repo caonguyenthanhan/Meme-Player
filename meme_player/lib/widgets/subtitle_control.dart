@@ -94,88 +94,105 @@ class SubtitleControl extends StatelessWidget {
     Color initialColor,
     Function(Color) onColorChanged,
   ) {
-    // In a real app, this would show a color picker
-    // For now, we'll just show a simple dialog with some preset colors
+    final presetColors = [
+      Colors.white,
+      Colors.yellow,
+      Colors.cyan,
+      Colors.lime,
+      Colors.orange,
+      Colors.pink,
+      Colors.red,
+      Colors.green,
+      Colors.blue,
+      Colors.purple,
+    ];
+
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Chọn màu'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _colorButton(context, Colors.white, onColorChanged),
-              _colorButton(context, Colors.yellow, onColorChanged),
-              _colorButton(context, Colors.green, onColorChanged),
-              _colorButton(context, Colors.blue, onColorChanged),
-              _colorButton(context, Colors.red, onColorChanged),
-              _colorButton(context, Colors.black, onColorChanged),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _colorButton(
-    BuildContext context,
-    Color color,
-    Function(Color) onColorChanged,
-  ) {
-    return InkWell(
-      onTap: () {
-        onColorChanged(color);
-        Navigator.pop(context);
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        width: double.infinity,
-        height: 40,
-        color: color,
-        child: Center(
-          child: Text(
-            color.toString(),
-            style: TextStyle(
-              color: color.computeLuminance() > 0.5 ? Colors.black : Colors.white,
-            ),
-          ),
+      builder: (context) => AlertDialog(
+        title: const Text('Chọn màu'),
+        content: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: presetColors.map((color) {
+            return GestureDetector(
+              onTap: () {
+                onColorChanged(color);
+                Navigator.of(context).pop();
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color,
+                  border: Border.all(
+                    color: initialColor == color ? Colors.black : Colors.grey,
+                    width: initialColor == color ? 3 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            );
+          }).toList(),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Hủy'),
+          ),
+        ],
       ),
     );
   }
 
   void _showFontPicker(BuildContext context, AppSettings settings) {
-    final fonts = [
+    final presetFonts = [
+      'Roboto',
       'Arial',
       'Times New Roman',
       'Courier New',
-      'Roboto',
-      'Open Sans',
+      'Verdana',
+      'Georgia',
+      'Palatino',
+      'Garamond',
+      'Bookman',
+      'Comic Sans MS',
     ];
 
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Chọn phông chữ'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: fonts.map((font) {
+      builder: (context) => AlertDialog(
+        title: const Text('Chọn phông chữ'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: presetFonts.length,
+            itemBuilder: (context, index) {
+              final font = presetFonts[index];
               return ListTile(
                 title: Text(
                   font,
                   style: TextStyle(fontFamily: font),
                 ),
+                trailing: settings.subtitleFontFamily == font
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
                 onTap: () {
                   settings.setSubtitleFontFamily(font);
-                  Navigator.pop(context);
+                  Navigator.of(context).pop();
                 },
-                selected: settings.subtitleFontFamily == font,
               );
-            }).toList(),
+            },
           ),
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Hủy'),
+          ),
+        ],
+      ),
     );
   }
 }

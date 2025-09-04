@@ -8,6 +8,7 @@ import '../models/app_settings.dart';
 import '../services/window_service.dart';
 import '../widgets/playback_speed_control.dart';
 import '../widgets/subtitle_control.dart';
+import '../widgets/preset_speed_buttons.dart';
 import '../services/subtitle_service.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -178,6 +179,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+    
+    if (hours > 0) {
+      return '$hours:${twoDigits(minutes)}:${twoDigits(seconds)}';
+    }
+    return '${twoDigits(minutes)}:${twoDigits(seconds)}';
+  }
+
+  void _seekToPosition(double position) {
+    if (_videoPlayerController != null) {
+      final duration = _videoPlayerController!.value.duration;
+      if (duration > Duration.zero) {
+        final seekPosition = duration * position;
+        _videoPlayerController!.seekTo(seekPosition);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _videoPlayerController?.dispose();
@@ -343,51 +366,219 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 left: 0,
                 right: 0,
                 bottom: 16,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.replay_10),
-                      onPressed: () => _skipBackward(const Duration(seconds: 10)),
-                      color: Colors.white,
-                      iconSize: 36,
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: const Icon(Icons.replay_30),
-                      onPressed: () => _skipBackward(const Duration(minutes: 1)),
-                      color: Colors.white,
-                      iconSize: 36,
-                    ),
-                    const SizedBox(width: 32),
-                    IconButton(
-                      icon: const Icon(Icons.forward_30),
-                      onPressed: () => _skipForward(const Duration(minutes: 1)),
-                      color: Colors.white,
-                      iconSize: 36,
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: const Icon(Icons.forward_10),
-                      onPressed: () => _skipForward(const Duration(seconds: 10)),
-                      color: Colors.white,
-                      iconSize: 36,
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: const Icon(Icons.forward_10),
-                      onPressed: () => _skipForward(const Duration(minutes: 10)),
-                      color: Colors.white,
-                      iconSize: 36,
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: const Icon(Icons.replay_10),
-                      onPressed: () => _skipBackward(const Duration(minutes: 10)),
-                      color: Colors.white,
-                      iconSize: 36,
-                    ),
-                  ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Timeline with current time and duration
+                      Row(
+                        children: [
+                          Text(
+                            _formatDuration(_videoPlayerController!.value.position),
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                          Expanded(
+                            child: Slider(
+                              value: _videoPlayerController!.value.duration > Duration.zero
+                                  ? _videoPlayerController!.value.position.inMilliseconds /
+                                      _videoPlayerController!.value.duration.inMilliseconds
+                                  : 0.0,
+                              onChanged: _seekToPosition,
+                              activeColor: Colors.white,
+                              inactiveColor: Colors.white24,
+                            ),
+                          ),
+                          Text(
+                            _formatDuration(_videoPlayerController!.value.duration),
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Seek buttons row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Backward buttons
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.replay_10),
+                                onPressed: () => _skipBackward(const Duration(minutes: 10)),
+                                color: Colors.white,
+                                iconSize: 32,
+                                tooltip: 'Lùi 10 phút',
+                              ),
+                              const Text('10p', style: TextStyle(color: Colors.white, fontSize: 10)),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.replay_30),
+                                onPressed: () => _skipBackward(const Duration(minutes: 1)),
+                                color: Colors.white,
+                                iconSize: 32,
+                                tooltip: 'Lùi 1 phút',
+                              ),
+                              const Text('1p', style: TextStyle(color: Colors.white, fontSize: 10)),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.replay_10),
+                                onPressed: () => _skipBackward(const Duration(seconds: 10)),
+                                color: Colors.white,
+                                iconSize: 32,
+                                tooltip: 'Lùi 10 giây',
+                              ),
+                              const Text('10s', style: TextStyle(color: Colors.white, fontSize: 10)),
+                            ],
+                          ),
+                          const SizedBox(width: 32),
+                          // Play/Pause button
+                          IconButton(
+                            icon: Icon(
+                              _videoPlayerController!.value.isPlaying
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                            ),
+                            onPressed: () {
+                              if (_videoPlayerController!.value.isPlaying) {
+                                _videoPlayerController!.pause();
+                              } else {
+                                _videoPlayerController!.play();
+                              }
+                              setState(() {});
+                            },
+                            color: Colors.white,
+                            iconSize: 48,
+                            tooltip: 'Phát/Tạm dừng',
+                          ),
+                          const SizedBox(width: 32),
+                          // Forward buttons
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.forward_10),
+                                onPressed: () => _skipForward(const Duration(seconds: 10)),
+                                color: Colors.white,
+                                iconSize: 32,
+                                tooltip: 'Tiến 10 giây',
+                              ),
+                              const Text('10s', style: TextStyle(color: Colors.white, fontSize: 10)),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.forward_30),
+                                onPressed: () => _skipForward(const Duration(minutes: 1)),
+                                color: Colors.white,
+                                iconSize: 32,
+                                tooltip: 'Tiến 1 phút',
+                              ),
+                              const Text('1p', style: TextStyle(color: Colors.white, fontSize: 10)),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.forward_10),
+                                onPressed: () => _skipForward(const Duration(minutes: 10)),
+                                color: Colors.white,
+                                iconSize: 32,
+                                tooltip: 'Tiến 10 phút',
+                              ),
+                              const Text('10p', style: TextStyle(color: Colors.white, fontSize: 10)),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Speed control row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton(
+                            onPressed: () => _setPlaybackSpeed(
+                              (_chewieController!.playbackSpeed - 0.25).clamp(0.1, 10.0)
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white24,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            child: const Text('-0.25'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () => _setPlaybackSpeed(
+                              (_chewieController!.playbackSpeed - 0.1).clamp(0.1, 10.0)
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white24,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            child: const Text('-0.1'),
+                          ),
+                          const SizedBox(width: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${_chewieController!.playbackSpeed.toStringAsFixed(2)}x',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton(
+                            onPressed: () => _setPlaybackSpeed(
+                              (_chewieController!.playbackSpeed + 0.1).clamp(0.1, 10.0)
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white24,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            child: const Text('+0.1'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () => _setPlaybackSpeed(
+                              (_chewieController!.playbackSpeed + 0.25).clamp(0.1, 10.0)
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white24,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            child: const Text('+0.25'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Preset speed buttons
+                      PresetSpeedButtons(
+                        currentSpeed: _chewieController!.playbackSpeed,
+                        onSpeedChanged: _setPlaybackSpeed,
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
