@@ -1,5 +1,6 @@
 package com.example.memeplayer.adapters
 
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,7 +8,9 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.memeplayer.R
+import com.example.memeplayer.VideoPlayerActivity
 import com.example.memeplayer.models.Video
+import java.util.concurrent.TimeUnit
 
 class VideoAdapter(private val videoList: List<Video>) : 
     RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
@@ -27,16 +30,24 @@ class VideoAdapter(private val videoList: List<Video>) :
     override fun onBindViewHolder(holder: VideoViewHolder, position: Int) {
         val video = videoList[position]
         holder.titleTextView.text = video.title
-        holder.durationTextView.text = video.duration
+        holder.durationTextView.text = formatDuration(video.duration)
         
-        // Trong ứng dụng thực tế, bạn sẽ sử dụng thư viện như Glide hoặc Picasso để tải hình ảnh
-        // Glide.with(holder.itemView.context).load(video.thumbnailUrl).into(holder.thumbnailImageView)
+        // Hiển thị thumbnail mặc định
+        holder.thumbnailImageView.setImageResource(R.drawable.ic_video_placeholder)
         
-        // Thiết lập sự kiện click cho item
+        // Thiết lập sự kiện click để phát video
         holder.itemView.setOnClickListener {
-            // Xử lý khi người dùng nhấn vào video
-            // Ví dụ: mở màn hình phát video
+            val context = holder.itemView.context
+            val intent = Intent(context, VideoPlayerActivity::class.java)
+            intent.data = video.uri
+            context.startActivity(intent)
         }
+    }
+    
+    private fun formatDuration(durationMs: Long): String {
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(durationMs)
+        val seconds = TimeUnit.MILLISECONDS.toSeconds(durationMs) % 60
+        return String.format("%02d:%02d", minutes, seconds)
     }
 
     override fun getItemCount(): Int = videoList.size

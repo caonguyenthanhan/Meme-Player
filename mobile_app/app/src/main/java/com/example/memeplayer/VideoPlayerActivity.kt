@@ -4,6 +4,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import android.widget.AdapterView
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.PlayerView
@@ -249,7 +250,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 return true
             }
             
-            override fun onSingleTapUp(e: MotionEvent): Boolean {
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
                 val newVisibility = if (controlsContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
                 controlsContainer.visibility = newVisibility
                 videoTitle.visibility = newVisibility
@@ -262,6 +263,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         var startY = 0f
         var longPressActive = false
         var longPressDir = 0
+        var isSwipeGesture = false
         val longPressRunnable = object : Runnable {
             override fun run() {
                 if (longPressActive) {
@@ -272,64 +274,69 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
 
         playerView.setOnTouchListener { _, event ->
-            // Handle zoom gesture
-            scaleGestureDetector.onTouchEvent(event)
-            // also pass to detector for double-tap and single tap
-            gestureDetector.onTouchEvent(event)
+            // Handle zoom gesture first
+            if (scaleGestureDetector.onTouchEvent(event)) {
+                return@setOnTouchListener true
+            }
+            
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     startX = event.x
                     startY = event.y
                     longPressActive = true
                     longPressDir = if (startX < playerView.width / 2) -1 else 1
+                    isSwipeGesture = false
                     uiHandler.postDelayed(longPressRunnable, 600)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.x - startX
                     val dy = event.y - startY
-                    // cancel long press if user moves significantly
-                    if (Math.abs(dx) > 20 || Math.abs(dy) > 20) {
+                    
+                    // Check if this is a swipe gesture
+                    if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
+                        isSwipeGesture = true
                         longPressActive = false
-                    }
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        // horizontal seek
-                        seekBy((dx / playerView.width * 120_000).toLong())
-                    } else {
-                        val isLeft = startX < playerView.width / 2
-                        if (isLeft) {
-                            // brightness via window attributes (does not require write settings)
-                            val lp = window.attributes
-                            val cur = if (lp.screenBrightness in 0f..1f) lp.screenBrightness else 0.5f
-                            val newVal = (cur - dy / playerView.height).coerceIn(0.05f, 1.0f)
-                            lp.screenBrightness = newVal
-                            window.attributes = lp
-                            
-                            // Show brightness indicator
-                            val percentage = (newVal * 100).toInt()
-                            brightnessText.text = "$percentage%"
-                            brightnessIndicator.visibility = View.VISIBLE
-                            
-                            // Auto-hide after 1 second
-                            uiHandler.removeCallbacksAndMessages("brightness")
-                            uiHandler.postDelayed({
-                                brightnessIndicator.visibility = View.GONE
-                            }, 1000)
+                        
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            // horizontal seek
+                            seekBy((dx / playerView.width * 120_000).toLong())
                         } else {
-                            // volume
-                            val cur = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                            val newVal = (cur - dy / playerView.height * maxVolume).toInt().coerceIn(0, maxVolume)
-                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVal, 0)
-                            
-                            // Show volume indicator
-                            val percentage = (newVal * 100 / maxVolume)
-                            volumeText.text = "$percentage%"
-                            volumeIndicator.visibility = View.VISIBLE
-                            
-                            // Auto-hide after 1 second
-                            uiHandler.removeCallbacksAndMessages("volume")
-                            uiHandler.postDelayed({
-                                volumeIndicator.visibility = View.GONE
-                            }, 1000)
+                            val isLeft = startX < playerView.width / 2
+                            if (isLeft) {
+                                // brightness via window attributes (does not require write settings)
+                                val lp = window.attributes
+                                val cur = if (lp.screenBrightness in 0f..1f) lp.screenBrightness else 0.5f
+                                val newVal = (cur - dy / playerView.height).coerceIn(0.05f, 1.0f)
+                                lp.screenBrightness = newVal
+                                window.attributes = lp
+                                
+                                // Show brightness indicator
+                                val percentage = (newVal * 100).toInt()
+                                brightnessText.text = "$percentage%"
+                                brightnessIndicator.visibility = View.VISIBLE
+                                
+                                // Auto-hide after 1 second
+                                uiHandler.removeCallbacksAndMessages("brightness")
+                                uiHandler.postDelayed({
+                                    brightnessIndicator.visibility = View.GONE
+                                }, 1000)
+                            } else {
+                                // volume
+                                val cur = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                val newVal = (cur - dy / playerView.height * maxVolume).toInt().coerceIn(0, maxVolume)
+                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVal, 0)
+                                
+                                // Show volume indicator
+                                val percentage = (newVal * 100 / maxVolume)
+                                volumeText.text = "$percentage%"
+                                volumeIndicator.visibility = View.VISIBLE
+                                
+                                // Auto-hide after 1 second
+                                uiHandler.removeCallbacksAndMessages("volume")
+                                uiHandler.postDelayed({
+                                    volumeIndicator.visibility = View.GONE
+                                }, 1000)
+                            }
                         }
                     }
                 }
@@ -337,6 +344,12 @@ class VideoPlayerActivity : AppCompatActivity() {
                     longPressActive = false
                 }
             }
+            
+            // Pass to gesture detector only if not a swipe gesture
+            if (!isSwipeGesture) {
+                gestureDetector.onTouchEvent(event)
+            }
+            
             true
         }
         
@@ -698,6 +711,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         val seekBackgroundOpacity = dialogView.findViewById<SeekBar>(R.id.seekbar_bg_opacity)
         val txtOpacityValue = dialogView.findViewById<TextView>(R.id.txt_bg_opacity)
         val spinnerFontFamily = dialogView.findViewById<Spinner>(R.id.spinner_font_family)
+        val txtPreview = dialogView.findViewById<TextView>(R.id.txt_preview)
         
         // Color buttons
         val btnColorWhite = dialogView.findViewById<Button>(R.id.btn_color_white)
@@ -705,12 +719,44 @@ class VideoPlayerActivity : AppCompatActivity() {
         val btnColorRed = dialogView.findViewById<Button>(R.id.btn_color_red)
         val btnColorGreen = dialogView.findViewById<Button>(R.id.btn_color_green)
         val btnColorBlue = dialogView.findViewById<Button>(R.id.btn_color_blue)
+        val btnColorPicker = dialogView.findViewById<Button>(R.id.btn_color_picker)
         
         // Background color buttons
         val btnBgTransparent = dialogView.findViewById<Button>(R.id.btn_bg_transparent)
         val btnBgBlack = dialogView.findViewById<Button>(R.id.btn_bg_black)
         val btnBgGray = dialogView.findViewById<Button>(R.id.btn_bg_gray)
         val btnBgWhite = dialogView.findViewById<Button>(R.id.btn_bg_white)
+        val btnBgColorPicker = dialogView.findViewById<Button>(R.id.btn_bg_color_picker)
+        
+        // Preview variables (separate from actual subtitle settings)
+        var previewTextSize = subtitleTextSize
+        var previewTextColor = subtitleTextColor
+        var previewBackgroundColor = subtitleBackgroundColor
+        var previewBackgroundOpacity = subtitleBackgroundOpacity
+        var previewFontFamily = subtitleFontFamily
+        
+        // Function to update preview only
+        fun updatePreview() {
+            txtPreview.textSize = previewTextSize
+            txtPreview.setTextColor(previewTextColor)
+            
+            val backgroundColor = android.graphics.Color.argb(
+                (previewBackgroundOpacity * 255).toInt(),
+                android.graphics.Color.red(previewBackgroundColor),
+                android.graphics.Color.green(previewBackgroundColor),
+                android.graphics.Color.blue(previewBackgroundColor)
+            )
+            txtPreview.setBackgroundColor(backgroundColor)
+            
+            // Apply font family
+            val typeface = when (previewFontFamily) {
+                "serif" -> android.graphics.Typeface.SERIF
+                "sans-serif" -> android.graphics.Typeface.SANS_SERIF
+                "monospace" -> android.graphics.Typeface.MONOSPACE
+                else -> android.graphics.Typeface.DEFAULT
+            }
+            txtPreview.typeface = typeface
+        }
         
         // Set initial values
         seekTextSize.progress = (subtitleTextSize - 10f).toInt()
@@ -718,18 +764,30 @@ class VideoPlayerActivity : AppCompatActivity() {
         seekBackgroundOpacity.progress = (subtitleBackgroundOpacity * 100).toInt()
         txtOpacityValue.text = "${(subtitleBackgroundOpacity * 100).toInt()}%"
         
-        // Setup font family spinner
+        // Setup font family spinner with system fonts
         val fontFamilies = arrayOf("Default", "Serif", "Sans Serif", "Monospace")
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, fontFamilies)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerFontFamily.adapter = adapter
         
-        // Setup seekbar listeners
+        // Set initial font selection
+        val initialFontIndex = when (subtitleFontFamily) {
+            "serif" -> 1
+            "sans-serif" -> 2
+            "monospace" -> 3
+            else -> 0
+        }
+        spinnerFontFamily.setSelection(initialFontIndex)
+        
+        // Initial preview update
+        updatePreview()
+        
+        // Setup seekbar listeners - only update preview
         seekTextSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                subtitleTextSize = (progress + 10).toFloat()
-                txtTextSizeValue.text = "${subtitleTextSize.toInt()}sp"
-                updateSubtitleStyle()
+                previewTextSize = (progress + 10).toFloat()
+                txtTextSizeValue.text = "${previewTextSize.toInt()}sp"
+                updatePreview()
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -737,52 +795,81 @@ class VideoPlayerActivity : AppCompatActivity() {
         
         seekBackgroundOpacity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                subtitleBackgroundOpacity = progress / 100f
+                previewBackgroundOpacity = progress / 100f
                 txtOpacityValue.text = "${progress}%"
-                updateSubtitleStyle()
+                updatePreview()
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
         
-        // Setup color button listeners
-        btnColorWhite.setOnClickListener {
-            subtitleTextColor = android.graphics.Color.WHITE
-            updateSubtitleStyle()
-        }
-        btnColorYellow.setOnClickListener {
-            subtitleTextColor = android.graphics.Color.YELLOW
-            updateSubtitleStyle()
-        }
-        btnColorRed.setOnClickListener {
-            subtitleTextColor = android.graphics.Color.RED
-            updateSubtitleStyle()
-        }
-        btnColorGreen.setOnClickListener {
-            subtitleTextColor = android.graphics.Color.GREEN
-            updateSubtitleStyle()
-        }
-        btnColorBlue.setOnClickListener {
-            subtitleTextColor = android.graphics.Color.BLUE
-            updateSubtitleStyle()
+        // Setup font family spinner listener
+        spinnerFontFamily.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                previewFontFamily = when (position) {
+                    1 -> "serif"
+                    2 -> "sans-serif"
+                    3 -> "monospace"
+                    else -> "default"
+                }
+                updatePreview()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
         
-        // Setup background color button listeners
+        // Setup color button listeners - only update preview
+        btnColorWhite.setOnClickListener {
+            previewTextColor = android.graphics.Color.WHITE
+            updatePreview()
+        }
+        btnColorYellow.setOnClickListener {
+            previewTextColor = android.graphics.Color.YELLOW
+            updatePreview()
+        }
+        btnColorRed.setOnClickListener {
+            previewTextColor = android.graphics.Color.RED
+            updatePreview()
+        }
+        btnColorGreen.setOnClickListener {
+            previewTextColor = android.graphics.Color.GREEN
+            updatePreview()
+        }
+        btnColorBlue.setOnClickListener {
+            previewTextColor = android.graphics.Color.BLUE
+            updatePreview()
+        }
+        
+        // Setup background color button listeners - only update preview
         btnBgTransparent.setOnClickListener {
-            subtitleBackgroundColor = android.graphics.Color.TRANSPARENT
-            updateSubtitleStyle()
+            previewBackgroundColor = android.graphics.Color.TRANSPARENT
+            updatePreview()
         }
         btnBgBlack.setOnClickListener {
-            subtitleBackgroundColor = android.graphics.Color.BLACK
-            updateSubtitleStyle()
+            previewBackgroundColor = android.graphics.Color.BLACK
+            updatePreview()
         }
         btnBgGray.setOnClickListener {
-            subtitleBackgroundColor = android.graphics.Color.GRAY
-            updateSubtitleStyle()
+            previewBackgroundColor = android.graphics.Color.GRAY
+            updatePreview()
         }
         btnBgWhite.setOnClickListener {
-            subtitleBackgroundColor = android.graphics.Color.WHITE
-            updateSubtitleStyle()
+            previewBackgroundColor = android.graphics.Color.WHITE
+            updatePreview()
+        }
+        
+        // Color picker button listeners
+        btnColorPicker.setOnClickListener {
+            showColorPicker("Chọn màu chữ") { color ->
+                previewTextColor = color
+                updatePreview()
+            }
+        }
+        
+        btnBgColorPicker.setOnClickListener {
+            showColorPicker("Chọn màu nền") { color ->
+                previewBackgroundColor = color
+                updatePreview()
+            }
         }
         
         // Create and show dialog
@@ -790,7 +877,13 @@ class VideoPlayerActivity : AppCompatActivity() {
             .setTitle("Chỉnh sửa phụ đề")
             .setView(dialogView)
             .setPositiveButton("Áp dụng") { _, _ ->
-                // Settings are already applied in real-time
+                // Apply preview settings to actual subtitle settings
+                subtitleTextSize = previewTextSize
+                subtitleTextColor = previewTextColor
+                subtitleBackgroundColor = previewBackgroundColor
+                subtitleBackgroundOpacity = previewBackgroundOpacity
+                subtitleFontFamily = previewFontFamily
+                updateSubtitleStyle()
                 Toast.makeText(this, "Đã áp dụng cài đặt phụ đề", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Hủy", null)
@@ -819,10 +912,12 @@ class VideoPlayerActivity : AppCompatActivity() {
         val layoutParams = subtitleText.layoutParams as android.widget.FrameLayout.LayoutParams
         if (controlsVisible) {
             // Controls visible - position subtitle above controls
-            layoutParams.bottomMargin = 200 // Adjust this value as needed
+            // Controls container has multiple rows: buttons (44dp) + labels + timeline + speed controls + presets + subtitle buttons
+            // Total estimated height ~280dp + padding, so margin should be ~300dp
+            layoutParams.bottomMargin = 300
         } else {
-            // Controls hidden - position subtitle at bottom with fixed margin
-            layoutParams.bottomMargin = 50 // Adjust this value as needed
+            // Controls hidden - position subtitle at bottom with small margin
+            layoutParams.bottomMargin = 80
         }
         subtitleText.layoutParams = layoutParams
     }
@@ -872,6 +967,41 @@ class VideoPlayerActivity : AppCompatActivity() {
                 findViewById<TextView>(R.id.video_title).visibility = View.VISIBLE
             }
         }
+    }
+    
+    private fun showColorPicker(title: String, onColorSelected: (Int) -> Unit) {
+        val colors = arrayOf(
+            android.graphics.Color.WHITE,
+            android.graphics.Color.BLACK,
+            android.graphics.Color.RED,
+            android.graphics.Color.GREEN,
+            android.graphics.Color.BLUE,
+            android.graphics.Color.YELLOW,
+            android.graphics.Color.CYAN,
+            android.graphics.Color.MAGENTA,
+            android.graphics.Color.GRAY,
+            android.graphics.Color.LTGRAY,
+            android.graphics.Color.DKGRAY,
+            android.graphics.Color.parseColor("#FF6600"), // Orange
+            android.graphics.Color.parseColor("#9900CC"), // Purple
+            android.graphics.Color.parseColor("#FF1493"), // Deep Pink
+            android.graphics.Color.parseColor("#00FF7F"), // Spring Green
+            android.graphics.Color.parseColor("#FFD700")  // Gold
+        )
+        
+        val colorNames = arrayOf(
+            "Trắng", "Đen", "Đỏ", "Xanh lá", "Xanh dương", "Vàng",
+            "Xanh lơ", "Tím hồng", "Xám", "Xám nhạt", "Xám đậm",
+            "Cam", "Tím", "Hồng đậm", "Xanh lá nhạt", "Vàng kim"
+        )
+        
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(colorNames) { _, which ->
+                onColorSelected(colors[which])
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
     }
 }
 
