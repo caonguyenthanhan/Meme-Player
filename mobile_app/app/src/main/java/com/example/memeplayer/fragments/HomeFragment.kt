@@ -1,5 +1,6 @@
 package com.example.memeplayer.fragments
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -7,15 +8,18 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.memeplayer.DirectoryBrowserActivity
 import com.example.memeplayer.R
 import com.example.memeplayer.adapters.VideoAdapter
 import com.example.memeplayer.models.Video
+import com.google.android.material.button.MaterialButton
 
 class HomeFragment : Fragment() {
 
-    private lateinit var recyclerView: RecyclerView
+    private lateinit var recyclerRecentVideos: RecyclerView
     private lateinit var videoAdapter: VideoAdapter
-    private val videoList = ArrayList<Video>()
+    private lateinit var btnBrowseVideos: MaterialButton
+    private val recentVideoList = ArrayList<Video>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -23,24 +27,21 @@ class HomeFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
         
-        recyclerView = view.findViewById(R.id.recycler_videos)
-        recyclerView.layoutManager = LinearLayoutManager(context)
+        // Khởi tạo views
+        recyclerRecentVideos = view.findViewById(R.id.recycler_recent_videos)
+        btnBrowseVideos = view.findViewById(R.id.btn_browse_videos)
         
-        // Thêm dữ liệu mẫu
-        loadSampleData()
+        // Thiết lập RecyclerView cho video gần đây
+        recyclerRecentVideos.layoutManager = LinearLayoutManager(context)
+        videoAdapter = VideoAdapter(recentVideoList)
+        recyclerRecentVideos.adapter = videoAdapter
         
-        // Khởi tạo adapter
-        videoAdapter = VideoAdapter(videoList)
-        recyclerView.adapter = videoAdapter
+        // Xử lý sự kiện click nút duyệt video
+        btnBrowseVideos.setOnClickListener {
+            val intent = Intent(requireContext(), DirectoryBrowserActivity::class.java)
+            startActivity(intent)
+        }
         
         return view
-    }
-    
-    private fun loadSampleData() {
-        videoList.add(Video("Meme Video 1", "https://example.com/thumbnail1.jpg", "00:30"))
-        videoList.add(Video("Meme Video 2", "https://example.com/thumbnail2.jpg", "01:15"))
-        videoList.add(Video("Meme Video 3", "https://example.com/thumbnail3.jpg", "00:45"))
-        videoList.add(Video("Meme Video 4", "https://example.com/thumbnail4.jpg", "02:10"))
-        videoList.add(Video("Meme Video 5", "https://example.com/thumbnail5.jpg", "01:30"))
     }
 }

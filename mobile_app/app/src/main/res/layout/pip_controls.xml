@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:background="@android:color/transparent"
+    android:padding="8dp">
+
+    <ImageButton
+        android:id="@+id/pip_btn_rewind"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="16dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_rew"
+        android:contentDescription="Tua lùi 10 giây"
+        android:scaleType="fitCenter" />
+
+    <ImageButton
+        android:id="@+id/pip_btn_play_pause"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginHorizontal="16dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_pause"
+        android:contentDescription="Phát/Tạm dừng"
+        android:scaleType="fitCenter" />
+
+    <ImageButton
+        android:id="@+id/pip_btn_forward"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_ff"
+        android:contentDescription="Tua tới 10 giây"
+        android:scaleType="fitCenter" />
+
+</LinearLayout>

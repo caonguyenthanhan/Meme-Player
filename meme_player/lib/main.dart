@@ -50,7 +50,8 @@ class MyApp extends StatelessWidget {
                 ),
               ),
             ),
-            cardTheme: CardTheme(
+            // Đã sửa CardThemeDataDataData thành CardThemeData
+            cardTheme: CardThemeData(
               elevation: 2,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -76,7 +77,8 @@ class MyApp extends StatelessWidget {
                 ),
               ),
             ),
-            cardTheme: CardTheme(
+            // Đã sửa CardThemeDataData thành CardThemeData
+            cardTheme: CardThemeData(
               elevation: 2,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),

@@ -3,6 +3,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
+import 'dart:ui'; // Thêm import này để giải quyết lỗi 'Size'
 import '../models/media_file.dart';
 import '../models/app_settings.dart';
 import '../services/window_service.dart';
@@ -74,9 +75,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
         looping: false,
         aspectRatio: _videoPlayerController!.value.aspectRatio,
         playbackSpeeds: [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
-        playbackSpeed: settings.playbackSpeed,
-        subtitle: null,
+        // Cần thiết lập tốc độ phát sau khi controller được khởi tạo
+        // và đã được liên kết với VideoPlayerController.
+        // Tham số playbackSpeed đã bị xóa khỏi constructor.
       );
+
+      // Thiết lập tốc độ phát ban đầu từ cài đặt
+      if (settings.playbackSpeed != 1.0) {
+        await _chewieController!.setPlaybackSpeed(settings.playbackSpeed);
+      }
 
       setState(() {
         _isInitialized = true;
@@ -85,7 +92,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       // Listen to position updates for subtitle rendering
       _positionListener = () {
         final position = _videoPlayerController!.value.position;
-        final speed = _chewieController?.playbackSpeed ?? 1.0;
+        // Lấy tốc độ phát từ VideoPlayerController, không phải ChewieController
+        final speed = _videoPlayerController!.value.playbackSpeed;
         if (_currentMedia.subtitlePath != null) {
           final text = _subtitleService.getSubtitleTextAtPosition(
             _currentMedia.subtitlePath!,
@@ -168,10 +176,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _setPlaybackSpeed(double speed) {
-    if (_chewieController != null) {
-      setState(() {
-        _chewieController!.setPlaybackSpeed(speed);
-      });
+    if (_videoPlayerController != null) {
+      // Gọi setPlaybackSpeed trực tiếp từ VideoPlayerController
+      _videoPlayerController!.setPlaybackSpeed(speed);
       
       // Save to settings
       final settings = Provider.of<AppSettings>(context, listen: false);
@@ -296,7 +303,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     showModalBottomSheet(
                       context: context,
                       builder: (context) => PlaybackSpeedControl(
-                        currentSpeed: _chewieController!.playbackSpeed,
+                        // Lấy tốc độ phát từ videoPlayerController
+                        currentSpeed: _videoPlayerController!.value.playbackSpeed,
                         onSpeedChanged: _setPlaybackSpeed,
                       ),
                     );
@@ -508,7 +516,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         children: [
                           ElevatedButton(
                             onPressed: () => _setPlaybackSpeed(
-                              (_chewieController!.playbackSpeed - 0.25).clamp(0.1, 10.0)
+                              (_videoPlayerController!.value.playbackSpeed - 0.25).clamp(0.1, 10.0)
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white24,
@@ -520,7 +528,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: () => _setPlaybackSpeed(
-                              (_chewieController!.playbackSpeed - 0.1).clamp(0.1, 10.0)
+                              (_videoPlayerController!.value.playbackSpeed - 0.1).clamp(0.1, 10.0)
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white24,
@@ -537,7 +545,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              '${_chewieController!.playbackSpeed.toStringAsFixed(2)}x',
+                              // Lấy tốc độ phát từ VideoPlayerController
+                              '${_videoPlayerController!.value.playbackSpeed.toStringAsFixed(2)}x',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -548,7 +557,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           const SizedBox(width: 16),
                           ElevatedButton(
                             onPressed: () => _setPlaybackSpeed(
-                              (_chewieController!.playbackSpeed + 0.1).clamp(0.1, 10.0)
+                              (_videoPlayerController!.value.playbackSpeed + 0.1).clamp(0.1, 10.0)
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white24,
@@ -560,7 +569,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: () => _setPlaybackSpeed(
-                              (_chewieController!.playbackSpeed + 0.25).clamp(0.1, 10.0)
+                              (_videoPlayerController!.value.playbackSpeed + 0.25).clamp(0.1, 10.0)
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white24,
@@ -574,7 +583,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       const SizedBox(height: 8),
                       // Preset speed buttons
                       PresetSpeedButtons(
-                        currentSpeed: _chewieController!.playbackSpeed,
+                        currentSpeed: _videoPlayerController!.value.playbackSpeed,
                         onSpeedChanged: _setPlaybackSpeed,
                       ),
                     ],

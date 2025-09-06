@@ -18,22 +18,75 @@ import android.view.View
 import android.content.pm.ActivityInfo
 import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.media.AudioManager
 import android.provider.Settings
 import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
+import android.graphics.drawable.Icon
 import android.util.Rational
+import android.view.WindowManager
+import androidx.appcompat.app.AlertDialog
+import com.google.android.exoplayer2.Player
+import androidx.core.content.ContextCompat
 
 class VideoPlayerActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
+    private lateinit var playerView: PlayerView
     private val uiHandler = Handler(Looper.getMainLooper())
     private var subtitleMap: List<Triple<Long, Long, String>> = emptyList()
+    private lateinit var historyService: PlaybackHistoryService
+    private var currentVideoUri: Uri? = null
+    private var currentVideoName: String = ""
     private var currentSubtitleIndex: Int = -1
     private var speed: Float = 1.0f
     private var subtitlesEnabled: Boolean = true
+    
+    // Subtitle styling properties
+    private var subtitleTextSize: Float = 18f
+    private var subtitleTextColor: Int = android.graphics.Color.WHITE
+    private var subtitleBackgroundColor: Int = android.graphics.Color.BLACK
+    private var subtitleBackgroundOpacity: Float = 0.7f
+    private var subtitleFontFamily: String = "default"
+    
+    // Video zoom properties
+    private var videoScaleFactor: Float = 1.0f
+    private val minZoom = 0.1f
+    private val maxZoom = 5.0f
+    private lateinit var scaleGestureDetector: ScaleGestureDetector
+    
+    // PiP mode constants
+    companion object {
+        private const val ACTION_REWIND = "com.example.memeplayer.REWIND"
+        private const val ACTION_PLAY_PAUSE = "com.example.memeplayer.PLAY_PAUSE"
+        private const val ACTION_FORWARD = "com.example.memeplayer.FORWARD"
+    }
+    
+    // PiP broadcast receiver
+    private val pipReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                ACTION_REWIND -> seekBy(-10_000)
+                ACTION_PLAY_PAUSE -> {
+                    player?.let { p ->
+                        if (p.isPlaying) p.pause() else p.play()
+                    }
+                }
+                ACTION_FORWARD -> seekBy(10_000)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_video_player)
+        supportActionBar?.hide()
+        window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         val data: Uri? = intent?.data
         if (data == null) {
@@ -42,14 +95,17 @@ class VideoPlayerActivity : AppCompatActivity() {
             return
         }
 
-        val playerView = findViewById<PlayerView>(R.id.player_view)
-        player = ExoPlayer.Builder(this).build().also { exoPlayer ->
-            playerView.player = exoPlayer
-            val item = MediaItem.fromUri(data)
-            exoPlayer.setMediaItem(item)
-            exoPlayer.prepare()
-            exoPlayer.playWhenReady = true
-        }
+        // Initialize history service
+        historyService = PlaybackHistoryService(this)
+        currentVideoUri = data
+        currentVideoName = data.lastPathSegment?.substringAfterLast('/') ?: "Video"
+        
+        // Display video title - will sync with controls visibility
+        val videoTitle = findViewById<TextView>(R.id.video_title)
+        val displayName = currentVideoName.substringBeforeLast('.').replace('_', ' ')
+        videoTitle.text = displayName
+
+        initializePlayer(data)
 
         // Controls
         val btnPlayPause = findViewById<ImageButton>(R.id.btn_play_pause)
@@ -74,6 +130,10 @@ class VideoPlayerActivity : AppCompatActivity() {
         val timeline = findViewById<SeekBar>(R.id.seek_timeline)
         val txtCurrent = findViewById<TextView>(R.id.txt_current)
         val txtDuration = findViewById<TextView>(R.id.txt_duration)
+        val volumeIndicator = findViewById<LinearLayout>(R.id.volume_indicator)
+        val brightnessIndicator = findViewById<LinearLayout>(R.id.brightness_indicator)
+        val volumeText = findViewById<TextView>(R.id.volume_text)
+        val brightnessText = findViewById<TextView>(R.id.brightness_text)
 
         // Toggle subtitle enabled via long press on subtitle area
         subtitleText.setOnLongClickListener {
@@ -82,21 +142,43 @@ class VideoPlayerActivity : AppCompatActivity() {
             Toast.makeText(this, if (subtitlesEnabled) "Bật phụ đề" else "Tắt phụ đề", Toast.LENGTH_SHORT).show()
             true
         }
+        
+        // Initialize subtitle position
+        updateSubtitlePosition(controlsContainer.visibility == View.VISIBLE)
+        
+        // Register PiP broadcast receiver
+        val filter = IntentFilter().apply {
+            addAction(ACTION_REWIND)
+            addAction(ACTION_PLAY_PAUSE)
+            addAction(ACTION_FORWARD)
+        }
+        ContextCompat.registerReceiver(this, pipReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        
+        // Initialize zoom gesture detector
+        scaleGestureDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                videoScaleFactor *= detector.scaleFactor
+                videoScaleFactor = videoScaleFactor.coerceIn(minZoom, maxZoom)
+                playerView.scaleX = videoScaleFactor
+                playerView.scaleY = videoScaleFactor
+                return true
+            }
+        })
 
         // Play/Pause toggle
         btnPlayPause.setOnClickListener {
             player?.let { p ->
-                if (p.isPlaying) { p.pause(); btnPlayPause.setImageResource(android.R.drawable.ic_media_play) }
-                else { p.play(); btnPlayPause.setImageResource(android.R.drawable.ic_media_pause) }
+                if (p.isPlaying) {
+                    p.pause()
+                    btnPlayPause.setImageResource(android.R.drawable.ic_media_play)
+                } else {
+                    p.play()
+                    btnPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                }
             }
         }
 
-        fun seekBy(ms: Long) {
-            player?.let { p ->
-                val pos = p.currentPosition
-                p.seekTo((pos + ms).coerceAtLeast(0))
-            }
-        }
+
         btnBack10s.setOnClickListener { seekBy(-10_000) }
         btnBack1m.setOnClickListener { seekBy(-60_000) }
         btnBack10m.setOnClickListener { seekBy(-600_000) }
@@ -108,6 +190,10 @@ class VideoPlayerActivity : AppCompatActivity() {
             speed = newSpeed.coerceIn(0.1f, 10.0f)
             player?.setPlaybackSpeed(speed)
             txtSpeed.text = String.format(Locale.US, "%.2fx", speed)
+            
+            // Update seekbar to match the speed
+            val seekbarProgress = ((speed - 0.1f) / 0.1f).toInt()
+            speedSeek.progress = seekbarProgress
         }
         speedSeek.max = 99
         speedSeek.progress = 9 // 1.0x
@@ -128,7 +214,10 @@ class VideoPlayerActivity : AppCompatActivity() {
         presets.forEach { s ->
             val b = Button(this)
             b.text = "${s}x"
-            b.setOnClickListener { applySpeed(s) }
+            b.setOnClickListener { 
+                applySpeed(s)
+                // Seekbar will be updated automatically by applySpeed function
+            }
             presetContainer.addView(b)
         }
 
@@ -143,10 +232,11 @@ class VideoPlayerActivity : AppCompatActivity() {
         btnPickSubtitle.setOnClickListener {
             pickSubtitle.launch(arrayOf("text/plain", "application/x-subrip"))
         }
-
-        // Toggle custom controls on tap
-        playerView.setOnClickListener {
-            controlsContainer.visibility = if (controlsContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        
+        // Edit subtitle button
+        val btnEditSubtitle = findViewById<Button>(R.id.btn_edit_subtitle)
+        btnEditSubtitle.setOnClickListener {
+            showSubtitleEditor()
         }
 
         // Gesture handling (no overrides dependency)
@@ -156,6 +246,14 @@ class VideoPlayerActivity : AppCompatActivity() {
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 val isLeft = e.x < playerView.width / 2
                 if (isLeft) seekBy(-10_000) else seekBy(10_000)
+                return true
+            }
+            
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                val newVisibility = if (controlsContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+                controlsContainer.visibility = newVisibility
+                videoTitle.visibility = newVisibility
+                updateSubtitlePosition(newVisibility == View.VISIBLE)
                 return true
             }
         })
@@ -174,7 +272,9 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
 
         playerView.setOnTouchListener { _, event ->
-            // also pass to detector for double-tap
+            // Handle zoom gesture
+            scaleGestureDetector.onTouchEvent(event)
+            // also pass to detector for double-tap and single tap
             gestureDetector.onTouchEvent(event)
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -203,11 +303,33 @@ class VideoPlayerActivity : AppCompatActivity() {
                             val newVal = (cur - dy / playerView.height).coerceIn(0.05f, 1.0f)
                             lp.screenBrightness = newVal
                             window.attributes = lp
+                            
+                            // Show brightness indicator
+                            val percentage = (newVal * 100).toInt()
+                            brightnessText.text = "$percentage%"
+                            brightnessIndicator.visibility = View.VISIBLE
+                            
+                            // Auto-hide after 1 second
+                            uiHandler.removeCallbacksAndMessages("brightness")
+                            uiHandler.postDelayed({
+                                brightnessIndicator.visibility = View.GONE
+                            }, 1000)
                         } else {
                             // volume
                             val cur = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                             val newVal = (cur - dy / playerView.height * maxVolume).toInt().coerceIn(0, maxVolume)
                             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVal, 0)
+                            
+                            // Show volume indicator
+                            val percentage = (newVal * 100 / maxVolume)
+                            volumeText.text = "$percentage%"
+                            volumeIndicator.visibility = View.VISIBLE
+                            
+                            // Auto-hide after 1 second
+                            uiHandler.removeCallbacksAndMessages("volume")
+                            uiHandler.postDelayed({
+                                volumeIndicator.visibility = View.GONE
+                            }, 1000)
                         }
                     }
                 }
@@ -216,6 +338,26 @@ class VideoPlayerActivity : AppCompatActivity() {
                 }
             }
             true
+        }
+        
+        // PiP button click handler
+        btnPip.setOnClickListener {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                setupPipMode()
+                enterPictureInPictureMode()
+            } else {
+                Toast.makeText(this, "PiP mode không được hỗ trợ trên thiết bị này", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        // Rotate button click handler
+        btnRotate.setOnClickListener {
+            requestedOrientation = when (requestedOrientation) {
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
         }
 
         // Render loop for subtitles
@@ -241,12 +383,14 @@ class VideoPlayerActivity : AppCompatActivity() {
 
         // Picture-in-Picture button and keyboard shortcut
         fun enterPip() {
-            val aspect = if (playerView.width > 0 && playerView.height > 0)
-                Rational(playerView.width, playerView.height) else Rational(16,9)
-            val params = PictureInPictureParams.Builder()
-                .setAspectRatio(aspect)
-                .build()
-            enterPictureInPictureMode(params)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val aspect = if (playerView.width > 0 && playerView.height > 0)
+                    Rational(playerView.width, playerView.height) else Rational(16,9)
+                val params = PictureInPictureParams.Builder()
+                    .setAspectRatio(aspect)
+                    .build()
+                enterPictureInPictureMode(params)
+            }
         }
         btnPip.setOnClickListener { enterPip() }
 
@@ -301,10 +445,16 @@ class VideoPlayerActivity : AppCompatActivity() {
             uiHandler.postDelayed({
                 if (System.currentTimeMillis() - lastUserAction > 2500) {
                     controlsContainer.visibility = View.GONE
+                    videoTitle.visibility = View.GONE
                 }
             }, 3000)
         }
-        fun markUserAction() { lastUserAction = System.currentTimeMillis(); controlsContainer.visibility = View.VISIBLE; scheduleAutoHide() }
+        fun markUserAction() { 
+            lastUserAction = System.currentTimeMillis()
+            controlsContainer.visibility = View.VISIBLE
+            videoTitle.visibility = View.VISIBLE
+            scheduleAutoHide() 
+        }
         controlsContainer.setOnTouchListener { _, _ -> markUserAction(); false }
         playerView.setOnTouchListener { _, event ->
             markUserAction()
@@ -333,10 +483,32 @@ class VideoPlayerActivity : AppCompatActivity() {
                             val newVal = (cur - dy / playerView.height).coerceIn(0.05f, 1.0f)
                             lp.screenBrightness = newVal
                             window.attributes = lp
+                            
+                            // Show brightness indicator
+                            val percentage = (newVal * 100).toInt()
+                            brightnessText.text = "$percentage%"
+                            brightnessIndicator.visibility = View.VISIBLE
+                            
+                            // Auto-hide after 1 second
+                            uiHandler.removeCallbacksAndMessages("brightness")
+                            uiHandler.postDelayed({
+                                brightnessIndicator.visibility = View.GONE
+                            }, 1000)
                         } else {
                             val cur = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                             val newVal = (cur - dy / playerView.height * maxVolume).toInt().coerceIn(0, maxVolume)
                             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVal, 0)
+                            
+                            // Show volume indicator
+                            val percentage = (newVal * 100 / maxVolume)
+                            volumeText.text = "$percentage%"
+                            volumeIndicator.visibility = View.VISIBLE
+                            
+                            // Auto-hide after 1 second
+                            uiHandler.removeCallbacksAndMessages("volume")
+                            uiHandler.postDelayed({
+                                volumeIndicator.visibility = View.GONE
+                            }, 1000)
                         }
                     }
                 }
@@ -348,10 +520,113 @@ class VideoPlayerActivity : AppCompatActivity() {
         // Enter PiP when home pressed or user taps a special gesture - optional: button in future
     }
 
+    private fun seekBy(ms: Long) {
+        player?.let { p ->
+            val pos = p.currentPosition
+            p.seekTo((pos + ms).coerceAtLeast(0))
+        }
+    }
+    
+    private fun initializePlayer(videoUri: Uri) {
+        playerView = findViewById<PlayerView>(R.id.player_view)
+        player = ExoPlayer.Builder(this).build().also { exoPlayer ->
+            playerView.player = exoPlayer
+            val item = MediaItem.fromUri(videoUri)
+            exoPlayer.setMediaItem(item)
+            exoPlayer.prepare()
+            
+            // Restore playback position from history
+            val savedPosition = historyService.getPlaybackPosition(videoUri)
+            if (savedPosition > 0) {
+                exoPlayer.seekTo(savedPosition)
+            }
+            
+            exoPlayer.playWhenReady = true
+            exoPlayer.play()
+            
+            // Add listener for video completion and play state changes
+            exoPlayer.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_ENDED) {
+                        showVideoEndDialog()
+                    }
+                }
+                
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    val btnPlayPause = findViewById<ImageButton>(R.id.btn_play_pause)
+                    if (isPlaying) {
+                        btnPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                    } else {
+                        btnPlayPause.setImageResource(android.R.drawable.ic_media_play)
+                    }
+                }
+            })
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        
+        // Save playback position to history when pausing
+        currentVideoUri?.let { uri ->
+            player?.let { player ->
+                val currentPosition = player.currentPosition
+                val duration = player.duration
+                if (duration > 0) {
+                    historyService.savePlaybackPosition(uri, currentVideoName, currentPosition, duration)
+                }
+            }
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        
+        // Restore player state if it was released
+        if (player == null && currentVideoUri != null) {
+            initializePlayer(currentVideoUri!!)
+        }
+    }
+
     override fun onStop() {
         super.onStop()
+        
+        // Save playback position to history
+        currentVideoUri?.let { uri ->
+            player?.let { player ->
+                val currentPosition = player.currentPosition
+                val duration = player.duration
+                if (duration > 0) {
+                    historyService.savePlaybackPosition(uri, currentVideoName, currentPosition, duration)
+                }
+            }
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(pipReceiver)
         player?.release()
         player = null
+    }
+    
+    private fun showVideoEndDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Video đã kết thúc")
+            .setMessage("Bạn muốn làm gì tiếp theo?")
+            .setPositiveButton("Phát lại") { _, _ ->
+                player?.seekTo(0)
+                player?.play()
+            }
+            .setNeutralButton("Video tiếp theo") { _, _ ->
+                // TODO: Implement next video functionality
+                Toast.makeText(this, "Chức năng video tiếp theo sẽ được thêm sau", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Thoát") { _, _ ->
+                finish()
+            }
+            .setCancelable(false)
+            .show()
     }
 
     private fun loadSrt(uri: android.net.Uri): List<Triple<Long, Long, String>> {
@@ -411,6 +686,191 @@ class VideoPlayerActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
             0L
+        }
+    }
+    
+    private fun showSubtitleEditor() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_subtitle_editor, null)
+        
+        // Get UI elements
+        val seekTextSize = dialogView.findViewById<SeekBar>(R.id.seekbar_font_size)
+        val txtTextSizeValue = dialogView.findViewById<TextView>(R.id.txt_font_size)
+        val seekBackgroundOpacity = dialogView.findViewById<SeekBar>(R.id.seekbar_bg_opacity)
+        val txtOpacityValue = dialogView.findViewById<TextView>(R.id.txt_bg_opacity)
+        val spinnerFontFamily = dialogView.findViewById<Spinner>(R.id.spinner_font_family)
+        
+        // Color buttons
+        val btnColorWhite = dialogView.findViewById<Button>(R.id.btn_color_white)
+        val btnColorYellow = dialogView.findViewById<Button>(R.id.btn_color_yellow)
+        val btnColorRed = dialogView.findViewById<Button>(R.id.btn_color_red)
+        val btnColorGreen = dialogView.findViewById<Button>(R.id.btn_color_green)
+        val btnColorBlue = dialogView.findViewById<Button>(R.id.btn_color_blue)
+        
+        // Background color buttons
+        val btnBgTransparent = dialogView.findViewById<Button>(R.id.btn_bg_transparent)
+        val btnBgBlack = dialogView.findViewById<Button>(R.id.btn_bg_black)
+        val btnBgGray = dialogView.findViewById<Button>(R.id.btn_bg_gray)
+        val btnBgWhite = dialogView.findViewById<Button>(R.id.btn_bg_white)
+        
+        // Set initial values
+        seekTextSize.progress = (subtitleTextSize - 10f).toInt()
+        txtTextSizeValue.text = "${subtitleTextSize.toInt()}sp"
+        seekBackgroundOpacity.progress = (subtitleBackgroundOpacity * 100).toInt()
+        txtOpacityValue.text = "${(subtitleBackgroundOpacity * 100).toInt()}%"
+        
+        // Setup font family spinner
+        val fontFamilies = arrayOf("Default", "Serif", "Sans Serif", "Monospace")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, fontFamilies)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerFontFamily.adapter = adapter
+        
+        // Setup seekbar listeners
+        seekTextSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                subtitleTextSize = (progress + 10).toFloat()
+                txtTextSizeValue.text = "${subtitleTextSize.toInt()}sp"
+                updateSubtitleStyle()
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+        
+        seekBackgroundOpacity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                subtitleBackgroundOpacity = progress / 100f
+                txtOpacityValue.text = "${progress}%"
+                updateSubtitleStyle()
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+        
+        // Setup color button listeners
+        btnColorWhite.setOnClickListener {
+            subtitleTextColor = android.graphics.Color.WHITE
+            updateSubtitleStyle()
+        }
+        btnColorYellow.setOnClickListener {
+            subtitleTextColor = android.graphics.Color.YELLOW
+            updateSubtitleStyle()
+        }
+        btnColorRed.setOnClickListener {
+            subtitleTextColor = android.graphics.Color.RED
+            updateSubtitleStyle()
+        }
+        btnColorGreen.setOnClickListener {
+            subtitleTextColor = android.graphics.Color.GREEN
+            updateSubtitleStyle()
+        }
+        btnColorBlue.setOnClickListener {
+            subtitleTextColor = android.graphics.Color.BLUE
+            updateSubtitleStyle()
+        }
+        
+        // Setup background color button listeners
+        btnBgTransparent.setOnClickListener {
+            subtitleBackgroundColor = android.graphics.Color.TRANSPARENT
+            updateSubtitleStyle()
+        }
+        btnBgBlack.setOnClickListener {
+            subtitleBackgroundColor = android.graphics.Color.BLACK
+            updateSubtitleStyle()
+        }
+        btnBgGray.setOnClickListener {
+            subtitleBackgroundColor = android.graphics.Color.GRAY
+            updateSubtitleStyle()
+        }
+        btnBgWhite.setOnClickListener {
+            subtitleBackgroundColor = android.graphics.Color.WHITE
+            updateSubtitleStyle()
+        }
+        
+        // Create and show dialog
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Chỉnh sửa phụ đề")
+            .setView(dialogView)
+            .setPositiveButton("Áp dụng") { _, _ ->
+                // Settings are already applied in real-time
+                Toast.makeText(this, "Đã áp dụng cài đặt phụ đề", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Hủy", null)
+            .create()
+        
+        dialog.show()
+    }
+    
+    private fun updateSubtitleStyle() {
+        val subtitleText = findViewById<TextView>(R.id.subtitle_text)
+        subtitleText.textSize = subtitleTextSize
+        subtitleText.setTextColor(subtitleTextColor)
+        
+        // Apply background with opacity
+        val backgroundColor = android.graphics.Color.argb(
+            (subtitleBackgroundOpacity * 255).toInt(),
+            android.graphics.Color.red(subtitleBackgroundColor),
+            android.graphics.Color.green(subtitleBackgroundColor),
+            android.graphics.Color.blue(subtitleBackgroundColor)
+        )
+        subtitleText.setBackgroundColor(backgroundColor)
+    }
+    
+    private fun updateSubtitlePosition(controlsVisible: Boolean) {
+        val subtitleText = findViewById<TextView>(R.id.subtitle_text)
+        val layoutParams = subtitleText.layoutParams as android.widget.FrameLayout.LayoutParams
+        if (controlsVisible) {
+            // Controls visible - position subtitle above controls
+            layoutParams.bottomMargin = 200 // Adjust this value as needed
+        } else {
+            // Controls hidden - position subtitle at bottom with fixed margin
+            layoutParams.bottomMargin = 50 // Adjust this value as needed
+        }
+        subtitleText.layoutParams = layoutParams
+    }
+    
+    private fun setupPipMode() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val actions = mutableListOf<RemoteAction>()
+            
+            // Rewind action
+            val rewindIntent = Intent(ACTION_REWIND)
+            val rewindPendingIntent = PendingIntent.getBroadcast(this, 0, rewindIntent, PendingIntent.FLAG_IMMUTABLE)
+            val rewindIcon = Icon.createWithResource(this, android.R.drawable.ic_media_rew)
+            actions.add(RemoteAction(rewindIcon, "Tua lùi", "Tua lùi 10 giây", rewindPendingIntent))
+            
+            // Play/Pause action
+            val playPauseIntent = Intent(ACTION_PLAY_PAUSE)
+            val playPausePendingIntent = PendingIntent.getBroadcast(this, 1, playPauseIntent, PendingIntent.FLAG_IMMUTABLE)
+            val playPauseIcon = Icon.createWithResource(this, 
+                if (player?.isPlaying == true) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
+            actions.add(RemoteAction(playPauseIcon, "Phát/Tạm dừng", "Phát/Tạm dừng video", playPausePendingIntent))
+            
+            // Forward action
+            val forwardIntent = Intent(ACTION_FORWARD)
+            val forwardPendingIntent = PendingIntent.getBroadcast(this, 2, forwardIntent, PendingIntent.FLAG_IMMUTABLE)
+            val forwardIcon = Icon.createWithResource(this, android.R.drawable.ic_media_ff)
+            actions.add(RemoteAction(forwardIcon, "Tua tới", "Tua tới 10 giây", forwardPendingIntent))
+            
+            val params = PictureInPictureParams.Builder()
+                .setActions(actions)
+                .setAspectRatio(Rational(16, 9))
+                .build()
+            setPictureInPictureParams(params)
+        }
+    }
+    
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            if (isInPictureInPictureMode) {
+                // Hide all UI elements in PiP mode
+                findViewById<View>(R.id.controls_container).visibility = View.GONE
+                findViewById<TextView>(R.id.video_title).visibility = View.GONE
+                setupPipMode()
+            } else {
+                // Show UI elements when exiting PiP mode
+                findViewById<View>(R.id.controls_container).visibility = View.VISIBLE
+                findViewById<TextView>(R.id.video_title).visibility = View.VISIBLE
+            }
         }
     }
 }

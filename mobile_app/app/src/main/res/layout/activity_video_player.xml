@@ -14,24 +14,105 @@
         app:show_subtitle_button="false"
         app:use_controller="false" />
 
+    <!-- Video title overlay -->
+    <TextView
+        android:id="@+id/video_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_margin="16dp"
+        android:gravity="center"
+        android:textColor="#FFFFFFFF"
+        android:textSize="18sp"
+        android:shadowColor="#88000000"
+        android:shadowDx="0.5"
+        android:shadowDy="0.5"
+        android:shadowRadius="2"
+        android:background="#80000000"
+        android:padding="12dp"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:text="Video Title"
+        android:visibility="visible" />
+
     <!-- Subtitle overlay -->
     <TextView
         android:id="@+id/subtitle_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:layout_margin="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="80dp"
         android:gravity="center"
         android:textColor="#FFFFFFFF"
-        android:textSize="16sp"
+        android:textSize="18sp"
         android:shadowColor="#88000000"
         android:shadowDx="0.5"
         android:shadowDy="0.5"
         android:shadowRadius="2"
-        android:background="#80000000"
-        android:padding="8dp"
+        android:background="#B3000000"
+        android:padding="12dp"
         android:maxLines="4"
         android:visibility="gone" />
+
+    <!-- Volume indicator overlay -->
+    <LinearLayout
+        android:id="@+id/volume_indicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginEnd="32dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#CC000000"
+        android:padding="16dp"
+        android:visibility="gone">
+        
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_lock_silent_mode_off"
+            app:tint="#FFFFFF" />
+            
+        <TextView
+            android:id="@+id/volume_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:text="50%" />
+    </LinearLayout>
+
+    <!-- Brightness indicator overlay -->
+    <LinearLayout
+        android:id="@+id/brightness_indicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical|start"
+        android:layout_marginStart="32dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#CC000000"
+        android:padding="16dp"
+        android:visibility="gone">
+        
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_dialog_info"
+            app:tint="#FFFFFF" />
+            
+        <TextView
+            android:id="@+id/brightness_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:text="50%" />
+    </LinearLayout>
 
     <!-- Controls overlay -->
     <LinearLayout
@@ -228,6 +309,13 @@
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
                 android:text="Chọn phụ đề (.srt)"
+                android:textSize="12sp" />
+            <Button
+                android:id="@+id/btn_edit_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginStart="8dp"
+                android:text="Chỉnh sửa"
                 android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>

@@ -2,9 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:targetApi="32" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:targetApi="33" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:targetApi="33" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -30,9 +32,11 @@
         <activity
             android:name=".VideoPlayerActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:grantUriPermissions="true"
             android:configChanges="keyboardHidden|orientation|screenSize"
-            android:supportsPictureInPicture="true">
+            android:supportsPictureInPicture="true"
+            android:taskAffinity="com.example.memeplayer.videoplayer">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -53,6 +57,16 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="file" />
+            </intent-filter>
+        </activity>
+        
+        <activity
+            android:name=".DirectoryBrowserActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MemePlayer">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
     </application>

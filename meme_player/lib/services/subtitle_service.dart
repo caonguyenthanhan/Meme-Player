@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'package:subtitle/subtitle.dart';
 import '../utils/subtitle_utils.dart';
+import 'package:subtitle/subtitle.dart' as sub;
 
 class SubtitleService {
   // Singleton pattern
@@ -11,10 +12,10 @@ class SubtitleService {
   SubtitleService._internal();
 
   // Lưu trữ các phụ đề đã tải
-  final Map<String, List<SubtitleEntry>> _loadedSubtitles = {};
+  final Map<String, List<sub.SubtitleEntry>> _loadedSubtitles = {};
 
   // Tải phụ đề từ tệp
-  Future<List<SubtitleEntry>?> loadSubtitleFromFile(String subtitlePath) async {
+  Future<List<sub.SubtitleEntry>?> loadSubtitleFromFile(String subtitlePath) async {
     if (_loadedSubtitles.containsKey(subtitlePath)) {
       return _loadedSubtitles[subtitlePath];
     }
@@ -29,9 +30,10 @@ class SubtitleService {
       final content = await subtitleFile.readAsString();
       final extension = path.extension(subtitlePath).toLowerCase();
 
-      List<SubtitleEntry> subtitles = [];
+      List<sub.SubtitleEntry> subtitles = [];
       if (extension == '.srt') {
-        subtitles = await SubtitleUtils.parseSrtSubtitle(content);
+        // Đã sửa lỗi: 'parseSrtSubtitle' bây giờ yêu cầu một provider
+        subtitles = await sub.SubtitleConverter.convert(content);
       } else {
         debugPrint('Định dạng phụ đề không được hỗ trợ: $extension');
         return null;
@@ -57,7 +59,8 @@ class SubtitleService {
     // Tìm phụ đề phù hợp với vị trí hiện tại
     for (final subtitle in _loadedSubtitles[subtitlePath]!) {
       if (subtitle.start <= adjustedPosition && adjustedPosition <= subtitle.end) {
-        return subtitle.data;
+        // Đã sửa lỗi: Thuộc tính 'data' đã được đổi tên thành 'text'
+        return subtitle.text;
       }
     }
 
