@@ -7,6 +7,10 @@
         android:title="@string/action_search"
         app:showAsAction="ifRoom" />
     <item
+        android:id="@+id/action_subtitle_settings"
+        android:title="Cài đặt phụ đề mặc định"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_about"
         android:title="@string/action_about"
         app:showAsAction="never" />

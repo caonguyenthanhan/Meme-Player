@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Enable/Disable Switch -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Bật phụ đề mặc định"
+                android:textSize="16sp" />
+            
+            <Switch
+                android:id="@+id/switch_default_enabled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <!-- Font Size -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Kích thước chữ"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+            
+            <SeekBar
+                android:id="@+id/seekbar_default_font_size"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="40" />
+            
+            <TextView
+                android:id="@+id/txt_default_font_size"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="18sp"
+                android:layout_marginStart="8dp"
+                android:minWidth="50dp" />
+        </LinearLayout>
+
+        <!-- Background Opacity -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Độ mờ nền"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+            
+            <SeekBar
+                android:id="@+id/seekbar_default_bg_opacity"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="100" />
+            
+            <TextView
+                android:id="@+id/txt_default_bg_opacity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="70%"
+                android:layout_marginStart="8dp"
+                android:minWidth="50dp" />
+        </LinearLayout>
+
+        <!-- Font Family -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Kiểu chữ"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+        
+        <Spinner
+            android:id="@+id/spinner_default_font_family"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Text Color -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Màu chữ"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+            
+            <Button
+                android:id="@+id/btn_default_color_white"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Trắng"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp" />
+            
+            <Button
+                android:id="@+id/btn_default_color_yellow"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Vàng"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp" />
+            
+            <Button
+                android:id="@+id/btn_default_color_red"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Đỏ"
+                android:textSize="12sp" />
+        </LinearLayout>
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+            
+            <Button
+                android:id="@+id/btn_default_color_green"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Xanh lá"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp" />
+            
+            <Button
+                android:id="@+id/btn_default_color_blue"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Xanh dương"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp" />
+            
+            <Button
+                android:id="@+id/btn_default_color_picker"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Khác..."
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Background Color -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Màu nền"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+            
+            <Button
+                android:id="@+id/btn_default_bg_transparent"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Trong suốt"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp" />
+            
+            <Button
+                android:id="@+id/btn_default_bg_black"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Đen"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp" />
+            
+            <Button
+                android:id="@+id/btn_default_bg_gray"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Xám"
+                android:textSize="12sp" />
+        </LinearLayout>
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+            
+            <Button
+                android:id="@+id/btn_default_bg_white"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Trắng"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp" />
+            
+            <Button
+                android:id="@+id/btn_default_bg_color_picker"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Khác..."
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp" />
+            
+            <View
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <!-- Preview -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Xem trước"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+        
+        <TextView
+            android:id="@+id/txt_default_preview"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="Đây là phụ đề mặc định"
+            android:gravity="center"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:background="#B3000000"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            
+            <Button
+                android:id="@+id/btn_reset_default_settings"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Đặt lại"
+                android:layout_marginEnd="8dp" />
+            
+            <Button
+                android:id="@+id/btn_save_default_settings"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Lưu cài đặt"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

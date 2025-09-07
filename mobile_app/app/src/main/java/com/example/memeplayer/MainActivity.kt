@@ -87,6 +87,11 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Tìm kiếm", Toast.LENGTH_SHORT).show()
                 true
             }
+            R.id.action_subtitle_settings -> {
+                val intent = Intent(this, DefaultSubtitleSettingsActivity::class.java)
+                startActivity(intent)
+                true
+            }
             R.id.action_about -> {
                 Toast.makeText(this, "Về ứng dụng", Toast.LENGTH_SHORT).show()
                 true

@@ -193,6 +193,13 @@
                 android:layout_height="36dp"
                 android:contentDescription="pip"
                 android:src="@android:drawable/picture_frame" />
+
+            <ImageButton
+                android:id="@+id/btn_hide_controls"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:contentDescription="hide"
+                android:src="@android:drawable/ic_menu_close_clear_cancel" />
         </LinearLayout>
 
         <!-- Labels for seek buttons -->
@@ -210,6 +217,7 @@
             <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10p" android:padding="2dp" android:textSize="10sp" />
             <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="xoay" android:padding="2dp" android:textSize="10sp" />
             <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PiP" android:padding="2dp" android:textSize="10sp" />
+            <TextView style="@android:style/TextAppearance.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ẩn" android:padding="2dp" android:textSize="10sp" />
         </LinearLayout>
 
         <!-- Timeline -->

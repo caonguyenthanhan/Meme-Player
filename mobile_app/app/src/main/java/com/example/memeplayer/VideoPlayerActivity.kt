@@ -1,10 +1,14 @@
 package com.example.memeplayer
 
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.AdapterView
+import android.widget.EditText
+import androidx.appcompat.app.AlertDialog
+import android.view.inputmethod.InputMethodManager
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.PlayerView
@@ -26,12 +30,10 @@ import android.app.PictureInPictureParams
 import android.app.RemoteAction
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.IntentFilter
 import android.graphics.drawable.Icon
 import android.util.Rational
 import android.view.WindowManager
-import androidx.appcompat.app.AlertDialog
 import com.google.android.exoplayer2.Player
 import androidx.core.content.ContextCompat
 
@@ -41,6 +43,8 @@ class VideoPlayerActivity : AppCompatActivity() {
     private val uiHandler = Handler(Looper.getMainLooper())
     private var subtitleMap: List<Triple<Long, Long, String>> = emptyList()
     private lateinit var historyService: PlaybackHistoryService
+    private lateinit var subtitlePrefsService: SubtitlePreferencesService
+    private lateinit var defaultSubtitlePrefsService: DefaultSubtitlePreferencesService
     private var currentVideoUri: Uri? = null
     private var currentVideoName: String = ""
     private var currentSubtitleIndex: Int = -1
@@ -59,6 +63,10 @@ class VideoPlayerActivity : AppCompatActivity() {
     private val minZoom = 0.1f
     private val maxZoom = 5.0f
     private lateinit var scaleGestureDetector: ScaleGestureDetector
+    
+    // Auto-hide controls properties
+    private var autoHideRunnable: Runnable? = null
+    private val AUTO_HIDE_DELAY = 5000L // 5 seconds
     
     // PiP mode constants
     companion object {
@@ -96,15 +104,26 @@ class VideoPlayerActivity : AppCompatActivity() {
             return
         }
 
-        // Initialize history service
+        // Initialize services
         historyService = PlaybackHistoryService(this)
+        subtitlePrefsService = SubtitlePreferencesService(this)
+        defaultSubtitlePrefsService = DefaultSubtitlePreferencesService(this)
         currentVideoUri = data
         currentVideoName = data.lastPathSegment?.substringAfterLast('/') ?: "Video"
+        
+        // Load saved subtitle settings for this video
+        loadSavedSubtitleSettings()
         
         // Display video title - will sync with controls visibility
         val videoTitle = findViewById<TextView>(R.id.video_title)
         val displayName = currentVideoName.substringBeforeLast('.').replace('_', ' ')
         videoTitle.text = displayName
+        
+        // Long press on video title to rename
+        videoTitle.setOnLongClickListener {
+            showRenameDialog()
+            true
+        }
 
         initializePlayer(data)
 
@@ -177,15 +196,16 @@ class VideoPlayerActivity : AppCompatActivity() {
                     btnPlayPause.setImageResource(android.R.drawable.ic_media_pause)
                 }
             }
+            resetAutoHideTimer()
         }
 
 
-        btnBack10s.setOnClickListener { seekBy(-10_000) }
-        btnBack1m.setOnClickListener { seekBy(-60_000) }
-        btnBack10m.setOnClickListener { seekBy(-600_000) }
-        btnFwd10s.setOnClickListener { seekBy(10_000) }
-        btnFwd1m.setOnClickListener { seekBy(60_000) }
-        btnFwd10m.setOnClickListener { seekBy(600_000) }
+        btnBack10s.setOnClickListener { seekBy(-10_000); resetAutoHideTimer() }
+        btnBack1m.setOnClickListener { seekBy(-60_000); resetAutoHideTimer() }
+        btnBack10m.setOnClickListener { seekBy(-600_000); resetAutoHideTimer() }
+        btnFwd10s.setOnClickListener { seekBy(10_000); resetAutoHideTimer() }
+        btnFwd1m.setOnClickListener { seekBy(60_000); resetAutoHideTimer() }
+        btnFwd10m.setOnClickListener { seekBy(600_000); resetAutoHideTimer() }
 
         fun applySpeed(newSpeed: Float) {
             speed = newSpeed.coerceIn(0.1f, 10.0f)
@@ -202,14 +222,15 @@ class VideoPlayerActivity : AppCompatActivity() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val value = 0.1f + progress * 0.1f
                 applySpeed(value)
+                if (fromUser) resetAutoHideTimer()
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStartTrackingTouch(seekBar: SeekBar?) { resetAutoHideTimer() }
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
-        btnMinus01.setOnClickListener { applySpeed(speed - 0.1f) }
-        btnMinus025.setOnClickListener { applySpeed(speed - 0.25f) }
-        btnPlus01.setOnClickListener { applySpeed(speed + 0.1f) }
-        btnPlus025.setOnClickListener { applySpeed(speed + 0.25f) }
+        btnMinus01.setOnClickListener { applySpeed(speed - 0.1f); resetAutoHideTimer() }
+        btnMinus025.setOnClickListener { applySpeed(speed - 0.25f); resetAutoHideTimer() }
+        btnPlus01.setOnClickListener { applySpeed(speed + 0.1f); resetAutoHideTimer() }
+        btnPlus025.setOnClickListener { applySpeed(speed + 0.25f); resetAutoHideTimer() }
 
         val presets = listOf(0.1f, 0.5f, 0.75f, 1f, 1.5f, 1.75f, 2f, 2.5f, 3f, 5f, 10f)
         presets.forEach { s ->
@@ -217,6 +238,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             b.text = "${s}x"
             b.setOnClickListener { 
                 applySpeed(s)
+                resetAutoHideTimer()
                 // Seekbar will be updated automatically by applySpeed function
             }
             presetContainer.addView(b)
@@ -227,17 +249,21 @@ class VideoPlayerActivity : AppCompatActivity() {
             if (uri != null) {
                 contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 subtitleMap = loadSrt(uri)
+                currentSubtitleUri = uri
+                saveCurrentSubtitleSettings()
                 Toast.makeText(this, "Đã tải phụ đề", Toast.LENGTH_SHORT).show()
             }
         }
         btnPickSubtitle.setOnClickListener {
             pickSubtitle.launch(arrayOf("text/plain", "application/x-subrip"))
+            resetAutoHideTimer()
         }
         
         // Edit subtitle button
         val btnEditSubtitle = findViewById<Button>(R.id.btn_edit_subtitle)
         btnEditSubtitle.setOnClickListener {
             showSubtitleEditor()
+            resetAutoHideTimer()
         }
 
         // Gesture handling (no overrides dependency)
@@ -251,10 +277,12 @@ class VideoPlayerActivity : AppCompatActivity() {
             }
             
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                val newVisibility = if (controlsContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-                controlsContainer.visibility = newVisibility
-                videoTitle.visibility = newVisibility
-                updateSubtitlePosition(newVisibility == View.VISIBLE)
+                val controlsContainer = findViewById<View>(R.id.controls_container)
+                if (controlsContainer.visibility == View.VISIBLE) {
+                    hideControls()
+                } else {
+                    showControls() // Show with timer for tap gesture
+                }
                 return true
             }
         })
@@ -274,6 +302,18 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
 
         playerView.setOnTouchListener { _, event ->
+            // Handle touch interaction for controls
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                val controlsContainer = findViewById<View>(R.id.controls_container)
+                if (controlsContainer.visibility == View.VISIBLE) {
+                    // Controls already visible - just reset timer
+                    resetAutoHideTimer()
+                } else {
+                    // Controls hidden - show them without starting timer yet
+                    showControlsWithoutTimer()
+                }
+            }
+            
             // Handle zoom gesture first
             if (scaleGestureDetector.onTouchEvent(event)) {
                 return@setOnTouchListener true
@@ -361,6 +401,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this, "PiP mode không được hỗ trợ trên thiết bị này", Toast.LENGTH_SHORT).show()
             }
+            resetAutoHideTimer()
         }
         
         // Rotate button click handler
@@ -371,12 +412,18 @@ class VideoPlayerActivity : AppCompatActivity() {
                 ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
                 else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
+            resetAutoHideTimer()
+        }
+        
+        val btnHideControls = findViewById<ImageButton>(R.id.btn_hide_controls)
+        btnHideControls.setOnClickListener {
+            hideControls()
         }
 
         // Render loop for subtitles
         fun tick() {
             val p = player ?: return
-            val positionMs = (p.currentPosition / speed).toLong() // adjust by speed
+            val positionMs = p.currentPosition // ExoPlayer already handles speed internally
             val idx = subtitleMap.indexOfFirst { positionMs in it.first..it.second }
             if (idx != currentSubtitleIndex) {
                 currentSubtitleIndex = idx
@@ -531,6 +578,15 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
 
         // Enter PiP when home pressed or user taps a special gesture - optional: button in future
+        
+        // Show controls initially when video starts
+        showControls()
+        
+        // Setup long press for video title to rename
+        videoTitle.setOnLongClickListener {
+            showRenameDialog()
+            true
+        }
     }
 
     private fun seekBy(ms: Long) {
@@ -538,6 +594,100 @@ class VideoPlayerActivity : AppCompatActivity() {
             val pos = p.currentPosition
             p.seekTo((pos + ms).coerceAtLeast(0))
         }
+    }
+    
+    private fun toggleControlsVisibility() {
+        val controlsContainer = findViewById<View>(R.id.controls_container)
+        val videoTitle = findViewById<TextView>(R.id.video_title)
+        
+        if (controlsContainer.visibility == View.VISIBLE) {
+            hideControls()
+        } else {
+            showControls()
+        }
+    }
+    
+    private fun showControls() {
+        val controlsContainer = findViewById<View>(R.id.controls_container)
+        val videoTitle = findViewById<TextView>(R.id.video_title)
+        
+        controlsContainer.visibility = View.VISIBLE
+        videoTitle.visibility = View.VISIBLE
+        updateSubtitlePosition(true)
+        scheduleAutoHide()
+    }
+    
+    private fun showControlsWithoutTimer() {
+        val controlsContainer = findViewById<View>(R.id.controls_container)
+        val videoTitle = findViewById<TextView>(R.id.video_title)
+        
+        controlsContainer.visibility = View.VISIBLE
+        videoTitle.visibility = View.VISIBLE
+        updateSubtitlePosition(true)
+        // Don't schedule auto-hide yet - wait for user interaction
+    }
+    
+    private fun hideControls() {
+        val controlsContainer = findViewById<View>(R.id.controls_container)
+        val videoTitle = findViewById<TextView>(R.id.video_title)
+        
+        controlsContainer.visibility = View.GONE
+        videoTitle.visibility = View.GONE
+        updateSubtitlePosition(false)
+        cancelAutoHide()
+    }
+    
+    private fun scheduleAutoHide() {
+        cancelAutoHide()
+        autoHideRunnable = Runnable {
+            hideControls()
+        }
+        uiHandler.postDelayed(autoHideRunnable!!, AUTO_HIDE_DELAY)
+    }
+    
+    private fun cancelAutoHide() {
+        autoHideRunnable?.let {
+            uiHandler.removeCallbacks(it)
+            autoHideRunnable = null
+        }
+    }
+    
+    private fun resetAutoHideTimer() {
+        val controlsContainer = findViewById<View>(R.id.controls_container)
+        if (controlsContainer.visibility == View.VISIBLE) {
+            scheduleAutoHide()
+        }
+    }
+    
+    private fun showRenameDialog() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Đổi tên video")
+        
+        val input = EditText(this)
+        input.setText(currentVideoName)
+        input.selectAll()
+        builder.setView(input)
+        
+        builder.setPositiveButton("OK") { _, _ ->
+            val newName = input.text.toString().trim()
+            if (newName.isNotEmpty() && newName != currentVideoName) {
+                currentVideoName = newName
+                findViewById<TextView>(R.id.video_title).text = newName
+                resetAutoHideTimer()
+            }
+        }
+        
+        builder.setNegativeButton("Hủy") { dialog, _ ->
+            dialog.cancel()
+        }
+        
+        val dialog = builder.create()
+        dialog.show()
+        
+        // Focus on input and show keyboard
+        input.requestFocus()
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
     }
     
     private fun initializePlayer(videoUri: Uri) {
@@ -599,6 +749,9 @@ class VideoPlayerActivity : AppCompatActivity() {
         if (player == null && currentVideoUri != null) {
             initializePlayer(currentVideoUri!!)
         }
+        
+        // Show controls when resuming the activity
+        showControls()
     }
 
     override fun onStop() {
@@ -618,6 +771,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     
     override fun onDestroy() {
         super.onDestroy()
+        saveCurrentSubtitleSettings()
         unregisterReceiver(pipReceiver)
         player?.release()
         player = null
@@ -740,13 +894,18 @@ class VideoPlayerActivity : AppCompatActivity() {
             txtPreview.textSize = previewTextSize
             txtPreview.setTextColor(previewTextColor)
             
-            val backgroundColor = android.graphics.Color.argb(
-                (previewBackgroundOpacity * 255).toInt(),
-                android.graphics.Color.red(previewBackgroundColor),
-                android.graphics.Color.green(previewBackgroundColor),
-                android.graphics.Color.blue(previewBackgroundColor)
-            )
-            txtPreview.setBackgroundColor(backgroundColor)
+            // Handle transparent background properly
+            if (previewBackgroundColor == android.graphics.Color.TRANSPARENT) {
+                txtPreview.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            } else {
+                val backgroundColor = android.graphics.Color.argb(
+                    (previewBackgroundOpacity * 255).toInt(),
+                    android.graphics.Color.red(previewBackgroundColor),
+                    android.graphics.Color.green(previewBackgroundColor),
+                    android.graphics.Color.blue(previewBackgroundColor)
+                )
+                txtPreview.setBackgroundColor(backgroundColor)
+            }
             
             // Apply font family
             val typeface = when (previewFontFamily) {
@@ -779,7 +938,17 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
         spinnerFontFamily.setSelection(initialFontIndex)
         
-        // Initial preview update
+        // Set preview text to show current subtitle settings
+        txtPreview.text = "Đây là phụ đề mẫu"
+        
+        // Initialize preview variables with current settings
+        previewTextSize = subtitleTextSize
+        previewTextColor = subtitleTextColor
+        previewBackgroundColor = subtitleBackgroundColor
+        previewBackgroundOpacity = subtitleBackgroundOpacity
+        previewFontFamily = subtitleFontFamily
+        
+        // Initial preview update with current subtitle settings
         updatePreview()
         
         // Setup seekbar listeners - only update preview
@@ -884,6 +1053,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 subtitleBackgroundOpacity = previewBackgroundOpacity
                 subtitleFontFamily = previewFontFamily
                 updateSubtitleStyle()
+                saveCurrentSubtitleSettings()
                 Toast.makeText(this, "Đã áp dụng cài đặt phụ đề", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Hủy", null)
@@ -911,10 +1081,9 @@ class VideoPlayerActivity : AppCompatActivity() {
         val subtitleText = findViewById<TextView>(R.id.subtitle_text)
         val layoutParams = subtitleText.layoutParams as android.widget.FrameLayout.LayoutParams
         if (controlsVisible) {
-            // Controls visible - position subtitle above controls
-            // Controls container has multiple rows: buttons (44dp) + labels + timeline + speed controls + presets + subtitle buttons
-            // Total estimated height ~280dp + padding, so margin should be ~300dp
-            layoutParams.bottomMargin = 300
+            // Controls visible - position subtitle well above controls
+            // Increase margin to ensure subtitle is clearly visible above controls
+            layoutParams.bottomMargin = 300 // Increased margin to avoid controls overlap
         } else {
             // Controls hidden - position subtitle at bottom with small margin
             layoutParams.bottomMargin = 80
@@ -966,6 +1135,68 @@ class VideoPlayerActivity : AppCompatActivity() {
                 findViewById<View>(R.id.controls_container).visibility = View.VISIBLE
                 findViewById<TextView>(R.id.video_title).visibility = View.VISIBLE
             }
+        }
+    }
+    
+    private fun loadSavedSubtitleSettings() {
+        currentVideoUri?.let { uri ->
+            if (subtitlePrefsService.hasSubtitleSettings(uri)) {
+                val settings = subtitlePrefsService.getSubtitleSettings(uri)
+                
+                // Apply saved settings
+                subtitleTextSize = settings.fontSize
+                subtitleTextColor = settings.textColor
+                subtitleBackgroundColor = settings.backgroundColor
+                subtitleBackgroundOpacity = settings.opacity
+                subtitleFontFamily = settings.fontStyle
+                subtitlesEnabled = settings.isEnabled
+                
+                // Load saved subtitle file if exists
+                settings.subtitlePath?.let { path ->
+                    try {
+                        val uri = Uri.parse(path)
+                        subtitleMap = loadSrt(uri)
+                        currentSubtitleUri = uri
+                        Toast.makeText(this, "Đã tải phụ đề đã lưu", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "Không thể tải phụ đề đã lưu", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                
+                // Update UI with loaded settings
+                updateSubtitleStyle()
+            } else {
+                // Load default subtitle settings if no specific settings for this video
+                val defaultSettings = defaultSubtitlePrefsService.getDefaultSettings()
+                if (defaultSettings.enabled) {
+                    subtitleTextSize = defaultSettings.fontSize
+                    subtitleTextColor = defaultSettings.textColor
+                    subtitleBackgroundColor = defaultSettings.backgroundColor
+                    subtitleBackgroundOpacity = defaultSettings.backgroundOpacity
+                    subtitleFontFamily = defaultSettings.fontFamily
+                    subtitlesEnabled = true
+                    
+                    // Update UI with default settings
+                    updateSubtitleStyle()
+                }
+            }
+        }
+    }
+    
+    private var currentSubtitleUri: Uri? = null
+    
+    private fun saveCurrentSubtitleSettings() {
+        currentVideoUri?.let { uri ->
+            val settings = SubtitleSettings(
+                subtitlePath = currentSubtitleUri?.toString(),
+                fontSize = subtitleTextSize,
+                textColor = subtitleTextColor,
+                backgroundColor = subtitleBackgroundColor,
+                fontStyle = subtitleFontFamily,
+                opacity = subtitleBackgroundOpacity,
+                isEnabled = subtitlesEnabled
+            )
+            subtitlePrefsService.saveSubtitleSettings(uri, settings)
         }
     }
     

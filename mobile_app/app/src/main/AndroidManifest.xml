@@ -8,6 +8,11 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.hardware.usb.host" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+    
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -63,13 +68,13 @@
         
         <activity
             android:name=".DirectoryBrowserActivity"
-            android:exported="true"
-            android:theme="@style/Theme.MemePlayer">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="false"
+            android:theme="@style/Theme.MemePlayer" />
+            
+        <activity
+            android:name=".DefaultSubtitleSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MemePlayer" />
     </application>
 
 </manifest>

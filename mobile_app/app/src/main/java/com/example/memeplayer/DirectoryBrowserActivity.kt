@@ -19,6 +19,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 // import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
+import android.hardware.usb.UsbManager
+import android.content.Context
+import android.os.storage.StorageManager
+import android.os.storage.StorageVolume
+import android.os.Build
+import androidx.annotation.RequiresApi
 
 class DirectoryBrowserActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
@@ -71,6 +77,8 @@ class DirectoryBrowserActivity : AppCompatActivity() {
             if (fileItem.isDirectory) {
                 if (isShowingMediaFiles && fileItem.displayName.contains("Duyệt thư mục")) {
                     loadDirectory(currentDirectory)
+                } else if (isShowingMediaFiles && fileItem.displayName.contains("USB Storage")) {
+                    showUsbStorageOptions()
                 } else if (!isShowingMediaFiles && fileItem.displayName.contains("Quay lại danh sách video")) {
                     loadMediaFiles()
                 } else {
@@ -100,6 +108,116 @@ class DirectoryBrowserActivity : AppCompatActivity() {
         }
         supportActionBar?.title = displayPath
     }
+
+    private fun getUsbStorages(): List<File> {
+        val usbStorages = mutableListOf<File>()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val storageManager = getSystemService(Context.STORAGE_SERVICE) as StorageManager
+                val storageVolumes = storageManager.storageVolumes
+                
+                for (volume in storageVolumes) {
+                    if (volume.isRemovable && !volume.isPrimary) {
+                        // Try to get the path for removable storage
+                        val volumePath = getVolumePath(volume)
+                        if (volumePath != null) {
+                            val usbDir = File(volumePath)
+                            if (usbDir.exists() && usbDir.canRead()) {
+                                usbStorages.add(usbDir)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Fallback: Check common USB mount points
+            val commonUsbPaths = listOf(
+                "/storage/usbotg",
+                "/storage/usb",
+                "/mnt/usb",
+                "/mnt/usbotg",
+                "/storage/sda1",
+                "/storage/sdb1",
+                "/storage/sdc1",
+                "/storage/sdd1",
+                "/mnt/media_rw",
+                "/storage/extSdCard",
+                "/storage/external_SD",
+                "/storage/removable"
+            )
+            
+            // Also check /storage directory for any removable storage
+            try {
+                val storageDir = File("/storage")
+                if (storageDir.exists() && storageDir.isDirectory) {
+                    storageDir.listFiles()?.forEach { dir ->
+                        if (dir.isDirectory && dir.canRead() && 
+                            !dir.name.equals("emulated", ignoreCase = true) &&
+                            !dir.name.equals("self", ignoreCase = true) &&
+                            !usbStorages.contains(dir)) {
+                            usbStorages.add(dir)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore errors
+            }
+            
+            for (path in commonUsbPaths) {
+                val usbDir = File(path)
+                if (usbDir.exists() && usbDir.canRead() && !usbStorages.contains(usbDir)) {
+                    usbStorages.add(usbDir)
+                }
+            }
+            
+        } catch (e: Exception) {
+            // Ignore errors in USB detection
+        }
+        return usbStorages
+    }
+    
+    @RequiresApi(Build.VERSION_CODES.N)
+     private fun getVolumePath(volume: StorageVolume): String? {
+         return try {
+             val getPathMethod = volume.javaClass.getMethod("getPath")
+             getPathMethod.invoke(volume) as? String
+         } catch (e: Exception) {
+             null
+         }
+     }
+     
+     private fun showUsbStorageOptions() {
+         val usbStorages = getUsbStorages()
+         if (usbStorages.isEmpty()) {
+             androidx.appcompat.app.AlertDialog.Builder(this)
+                 .setTitle("USB Storage không khả dụng")
+                 .setMessage("Không tìm thấy USB storage nào.\n\nHướng dẫn:\n• Đảm bảo USB đã được cắm vào điện thoại\n• Kiểm tra USB có hỗ trợ OTG không\n• Thử rút và cắm lại USB\n• Một số thiết bị cần bật chế độ OTG trong cài đặt")
+                 .setPositiveButton("Thử lại") { _, _ ->
+                     showUsbStorageOptions()
+                 }
+                 .setNegativeButton("Đóng", null)
+                 .show()
+             return
+         }
+         
+         if (usbStorages.size == 1) {
+             // Directly browse the single USB storage
+             loadDirectory(usbStorages[0])
+         } else {
+             // Show selection dialog for multiple USB storages
+             val options = usbStorages.mapIndexed { index, file ->
+                 "💾 USB ${index + 1}: ${file.name}"
+             }.toTypedArray()
+             
+             androidx.appcompat.app.AlertDialog.Builder(this)
+                 .setTitle("Chọn USB Storage")
+                 .setItems(options) { _, which ->
+                     loadDirectory(usbStorages[which])
+                 }
+                 .setNegativeButton("Hủy", null)
+                 .show()
+         }
+     }
 
     private fun loadMediaFiles() {
         try {
@@ -158,6 +276,12 @@ class DirectoryBrowserActivity : AppCompatActivity() {
             
             // Add option to browse folders
             items.add(0, FileItem(currentDirectory, "📂 Duyệt thư mục", true, false))
+            
+            // Add USB storage option if available
+            val usbStorages = getUsbStorages()
+            if (usbStorages.isNotEmpty()) {
+                items.add(1, FileItem(usbStorages[0], "💾 USB Storage (${usbStorages.size} thiết bị)", true, false))
+            }
             
             allFiles = items
             adapter.updateItems(items)
